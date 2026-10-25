@@ -1,5 +1,10 @@
 // Today's Training: a fixed plan per day, built from the chosen duration.
-// Progress is never ticked by hand — it is computed from what you actually did today.
+// Progress is never ticked by hand — it is computed from what you actually did today,
+// and only what you did WELL counts:
+//  - puzzles / your mistakes: solved without showing the solution (retries are fine)
+//  - opening lines: learned, or reviewed without asking for the arrow
+//  - blindfold: rounds with at least 70% correct, or a blindfold game not lost
+//  - review: a game reviewed
 // Your weakest area (see areas.ts) gets 50% more items.
 import type { Activity, DrillSession, Game, LineAttempt, LineProgress, MistakePosition, PositionAttempt, PuzzleAttempt, Settings } from './db'
 import { dayKey } from './dates'
@@ -43,6 +48,12 @@ export function buildPlan(minutes: number, hasUnreviewedGame: boolean, weakest?:
   return items
 }
 
+/** A blindfold round counts with ≥ 70% correct; a blindfold game counts if not lost. */
+export function drillPassed(d: DrillSession): boolean {
+  if (d.kind === 'blind-game') return d.correct >= 1
+  return d.total > 0 && d.correct / d.total >= 0.7
+}
+
 export function planProgress(
   item: PlanItem,
   data: { attempts: PuzzleAttempt[]; drills: DrillSession[]; games: Game[]; lineAttempts: LineAttempt[]; positionAttempts: PositionAttempt[] },
@@ -50,16 +61,15 @@ export function planProgress(
 ): number {
   switch (item.activity) {
     case 'blindfold':
-      return data.drills.filter((d) => d.day === day).length
+      return data.drills.filter((d) => d.day === day && drillPassed(d)).length
     case 'review':
       return data.games.filter((g) => g.reviewedAt && dayKey(new Date(g.reviewedAt)) === day).length
     case 'openings':
-      return data.lineAttempts.filter((a) => a.day === day).length
+      return data.lineAttempts.filter((a) => a.day === day && (a.mode === 'learn' || (a.solved ?? a.correct))).length
     case 'mistakes':
-      return new Set(data.positionAttempts.filter((a) => a.day === day).map((a) => a.posId)).size
+      return new Set(data.positionAttempts.filter((a) => a.day === day && (a.solved ?? a.correct)).map((a) => a.posId)).size
     default:
-      // Counts attempts (correct or not): the goal is to do the work, accuracy is tracked separately.
-      return data.attempts.filter((a) => a.day === day && a.cat === item.activity).length
+      return data.attempts.filter((a) => a.day === day && a.cat === item.activity && (a.solved ?? a.correct)).length
   }
 }
 

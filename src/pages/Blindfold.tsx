@@ -95,13 +95,19 @@ export function MovesDrill() {
   const [q, setQ] = useState<MoveQuestion>(moveQuestion)
   const [score, setScore] = useState({ c: 0, t: 0 })
   const [feedback, setFeedback] = useState<{ ok: boolean; answer: string } | null>(null)
+  const [retrying, setRetrying] = useState<string | null>(null)
   const ROUND = 10
 
   function answer(opt: string) {
     if (feedback) return
     const ok = opt === q.answer
-    setFeedback({ ok, answer: q.answer })
-    const next = { c: score.c + (ok ? 1 : 0), t: score.t + 1 }
+    // First mistake: don't reveal, think again. Only first-try answers score.
+    if (!ok && !retrying) {
+      setRetrying(opt)
+      return
+    }
+    setFeedback({ ok: ok && !retrying, answer: q.answer })
+    const next = { c: score.c + (ok && !retrying ? 1 : 0), t: score.t + 1 }
     setScore(next)
     if (next.t === ROUND) saveDrill({ kind: 'moves', correct: next.c, total: ROUND, seconds: 120 })
   }
@@ -122,20 +128,22 @@ export function MovesDrill() {
           <Card className="py-8 text-center text-xl font-bold">{text}</Card>
           <div className="grid grid-cols-3 gap-2">
             {q.options.map((o) => (
-              <Button key={o} variant="secondary" className="py-4 text-lg" onClick={() => answer(o)}>
+              <Button key={o} variant="secondary" className="py-4 text-lg" onClick={() => answer(o)} disabled={retrying === o}>
                 {o === 'yes' ? t('bf.yes') : o === 'no' ? t('bf.no') : o}
               </Button>
             ))}
           </div>
+          {retrying && !feedback && <p className="text-center font-semibold text-red-500">✗ {t('st.wrong')}</p>}
           {feedback && (
             <div className="flex flex-col gap-2">
               <p className={`text-center font-semibold ${feedback.ok ? 'text-green-600' : 'text-red-500'}`}>
-                {feedback.ok ? '✓' : `✗ ${t('bf.answerWas', { a: feedback.answer === 'yes' ? t('bf.yes') : feedback.answer === 'no' ? t('bf.no') : feedback.answer })}`}
+                {feedback.ok ? '✓' : `${retrying === null ? '✗ ' : ''}${t('bf.answerWas', { a: feedback.answer === 'yes' ? t('bf.yes') : feedback.answer === 'no' ? t('bf.no') : feedback.answer })}`}
               </p>
               <Button
                 onClick={() => {
                   setQ(moveQuestion())
                   setFeedback(null)
+                  setRetrying(null)
                 }}
               >
                 {t('common.next')} →
@@ -144,7 +152,7 @@ export function MovesDrill() {
           )}
         </>
       ) : (
-        <RoundDone score={score} onAgain={() => (setScore({ c: 0, t: 0 }), setQ(moveQuestion()), setFeedback(null))} />
+        <RoundDone score={score} onAgain={() => (setScore({ c: 0, t: 0 }), setQ(moveQuestion()), setFeedback(null), setRetrying(null))} />
       )}
     </div>
   )

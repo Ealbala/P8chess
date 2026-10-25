@@ -5,7 +5,7 @@ import type { AppData } from '../lib/data'
 import type { Settings, TimeControl } from '../lib/db'
 import { dayKey, monthStart, weekStart } from '../lib/dates'
 import { themeName, useLang, useT, type TKey } from '../lib/i18n'
-import { todaysPlan } from '../lib/plan'
+import { drillPassed, todaysPlan } from '../lib/plan'
 import {
   bestStreak, currentRating, dailySeries, gamesInRange, levelFromXp, lossStreakToday, mistakeTagCounts, needsReview,
   nextMilestone, practiceRating, ratingChange, record, streak, themeStats, totalXp, trainedDays, trainingMinutes, weeklyPace,
@@ -281,8 +281,8 @@ export default function Dashboard({ data }: { data: AppData }) {
         <Stat
           icon="🧩"
           label={t('dash.exercises')}
-          value={attempts.filter((a) => a.day >= wk).length + drills.filter((d) => d.day >= wk).length}
-          sub={t('dash.exercisesTotal', { n: attempts.length + drills.length })}
+          value={attempts.filter((a) => a.day >= wk && (a.solved ?? a.correct)).length + drills.filter((d) => d.day >= wk && drillPassed(d)).length}
+          sub={t('dash.exercisesTotal', { n: attempts.filter((a) => a.solved ?? a.correct).length + drills.filter(drillPassed).length })}
         />
       </div>
 

@@ -35,6 +35,8 @@ export default function LineTrainer({
   const [finished, setFinished] = useState(false)
   const [nextDue, setNextDue] = useState('')
   const mistakes = useRef(false)
+  const [showArrow, setShowArrow] = useState(false)
+  const arrowUsed = useRef(false)
   const game = useRef(new Chess())
   const myTurn = (p: number) => (p % 2 === 0) === (opening.color === 'white')
 
@@ -57,13 +59,14 @@ export default function LineTrainer({
 
   async function finish() {
     setFinished(true)
-    const correct = !mistakes.current
+    const correct = !mistakes.current && !arrowUsed.current
+    const solved = mode === 'learn' || !arrowUsed.current
     const prev = data.lineProgress.find((p) => p.lineId === line.id)
     const progress = mode === 'learn' ? nextProgress(line.id, undefined, true) : nextProgress(line.id, prev, correct)
     setNextDue(progress.due)
     await db.transaction('rw', db.lineProgress, db.lineAttempts, async () => {
       await db.lineProgress.put(progress)
-      await db.lineAttempts.add({ lineId: line.id, date: new Date().toISOString(), day: dayKey(), mode, correct })
+      await db.lineAttempts.add({ lineId: line.id, date: new Date().toISOString(), day: dayKey(), mode, correct, solved })
     })
   }
 
@@ -72,6 +75,7 @@ export default function LineTrainer({
     const expected = new Chess(game.current.fen()).move(moves[ply])
     if (expected.from === from && expected.to === to) {
       setWrong(false)
+      setShowArrow(false)
       play(moves[ply])
       return true
     }
@@ -85,13 +89,13 @@ export default function LineTrainer({
     return false
   }
 
-  // Arrow for your next move: always in learn mode, after a mistake in drill mode.
+  // Arrow for your next move: always in learn mode; in drill mode only if you ask for it.
   const hint = useMemo(() => {
-    if (finished || ply >= moves.length || !myTurn(ply) || (mode === 'drill' && !wrong)) return undefined
+    if (finished || ply >= moves.length || !myTurn(ply) || (mode === 'drill' && !showArrow)) return undefined
     const m = new Chess(fen).move(moves[ply])
     return [[m.from, m.to]] as [string, string][]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fen, ply, wrong, finished, mode])
+  }, [fen, ply, showArrow, finished, mode])
 
   // Show the note of the last move played (if any).
   const note = ply > 0 ? line.notes?.[ply]?.[lang] : undefined
@@ -122,7 +126,7 @@ export default function LineTrainer({
       <div
         className={`rounded-xl px-3 py-2 text-center text-sm font-semibold ${
           finished
-            ? mistakes.current
+            ? mistakes.current || arrowUsed.current
               ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100'
               : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
             : wrong
@@ -131,17 +135,30 @@ export default function LineTrainer({
         }`}
       >
         {finished
-          ? mistakes.current
+          ? mistakes.current || arrowUsed.current
             ? t('op.doneMistakes')
             : `✓ ${t('op.done')}`
           : wrong
-            ? t('op.wrong')
+            ? t('op.wrongRetry')
             : mode === 'learn'
               ? t('op.learnHint')
               : t('op.drillHint')}
       </div>
 
       <Board fen={fen} orientation={opening.color} onMove={onMove} interactive={!finished} lastMove={last} arrows={hint} />
+
+      {mode === 'drill' && !finished && myTurn(ply) && (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            arrowUsed.current = true
+            setShowArrow(true)
+          }}
+          disabled={showArrow}
+        >
+          💡 {t('op.showMove')}
+        </Button>
+      )}
 
       {note && (
         <Card className="text-sm">

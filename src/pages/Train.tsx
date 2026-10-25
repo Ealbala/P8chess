@@ -3,6 +3,8 @@ import { OpeningDetail, OpeningsHome, LineRoute } from './Openings'
 import { MistakeTrainer, MistakesHome } from './Mistakes'
 import { BlindGame, BlindfoldHome, CalcDrill, MemoryDrill, MovesDrill } from './Blindfold'
 import { EndgameTrainer, EndgamesHome } from './Endgames'
+import { StrategyHome, StrategyTrainer } from './Strategy'
+import History from './History'
 import { areaStats, endgameScore, priority, weakestArea } from '../lib/areas'
 import { errorRates } from '../lib/analysis'
 import type { TKey } from '../lib/i18n'
@@ -34,6 +36,10 @@ export default function Train({ data }: { data: AppData }) {
       <Route path="blindfold/4" element={<CalcDrill />} />
       <Route path="blindfold/5" element={<BlindGame />} />
       <Route path="endgames" element={<EndgamesHome data={data} />} />
+      <Route path="strategy" element={<StrategyHome data={data} />} />
+      <Route path="strategy/:id" element={<StrategyTrainer />} />
+      <Route path="history" element={<History data={data} />} />
+      <Route path="puzzle/:id" element={<PuzzleById data={data} />} />
       <Route path="endgames/:id" element={<EndgameTrainer />} />
     </Routes>
   )
@@ -103,6 +109,14 @@ function TrainHome({ data }: { data: AppData }) {
               {t(`act.${a}`)}
             </Link>
           ))}
+          <Link to="strategy" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800">
+            <span className="text-2xl">♜</span>
+            {t('st.title')}
+          </Link>
+          <Link to="history" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800">
+            <span className="text-2xl">🗂️</span>
+            {t('hist.title')}
+          </Link>
           <Link to="endgames" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800">
             <span className="text-2xl">👑</span>
             {t('eg.title')}
@@ -115,6 +129,13 @@ function TrainHome({ data }: { data: AppData }) {
       </Card>
     </div>
   )
+}
+
+function PuzzleById({ data }: { data: AppData }) {
+  const { id } = useParams()
+  const [params] = useSearchParams()
+  const cat = (params.get('c') ?? 'tactics') as PuzzleCat
+  return <PuzzleTrainer key={id} cat={cat} data={data} puzzleId={id} />
 }
 
 function PuzzleRoute({ data }: { data: AppData }) {

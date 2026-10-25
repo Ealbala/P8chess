@@ -68,3 +68,16 @@ describe('challenges and plan', () => {
     expect(buildPlan(30, false, undefined, 2)[0]).toMatchObject({ activity: 'mistakes', target: 2 })
   })
 })
+
+describe('only what is done well counts', () => {
+  it('counts solved puzzles (retries ok), not failed ones or shown solutions', async () => {
+    const { planProgress, drillPassed } = await import('../plan')
+    const day = '2026-10-25'
+    const a = (correct: boolean, solved?: boolean) => ({ puzzleId: 'x', date: '', day, cat: 'tactics' as const, correct, solved, rating: 1500, themes: [], seconds: 10 })
+    const data = { attempts: [a(true, true), a(false, true), a(false, false), a(true)], drills: [], games: [], lineAttempts: [], positionAttempts: [] }
+    expect(planProgress({ activity: 'tactics', target: 5 }, data, day)).toBe(3)
+    expect(drillPassed({ day, date: '', kind: 'moves', correct: 7, total: 10, seconds: 60 })).toBe(true)
+    expect(drillPassed({ day, date: '', kind: 'moves', correct: 6, total: 10, seconds: 60 })).toBe(false)
+    expect(drillPassed({ day, date: '', kind: 'blind-game', correct: 0, total: 2, seconds: 0 })).toBe(false)
+  })
+})

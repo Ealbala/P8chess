@@ -96,8 +96,8 @@ export function trainingMinutes(attempts: PuzzleAttempt[], drills: DrillSession[
 }
 
 /**
- * XP rules: correct puzzle 10, missed puzzle 2, drill round 5 + 1 per correct answer,
- * game review 15, opening line 5, position from your games 15 (correct) / 3,
+ * XP rules: puzzle 10 at the first try / 5 solved after retrying / 2 not solved, drill round 5 + 1 per correct answer,
+ * game review 15, opening line 5, position from your games 15 / 8 / 3,
  * completed daily challenge 25, weekly challenge met 50.
  */
 export function totalXp(
@@ -107,11 +107,11 @@ export function totalXp(
   extra: { lineAttempts?: LineAttempt[]; positionAttempts?: PositionAttempt[]; daysDone?: string[]; weeksMet?: number } = {},
 ): number {
   return (
-    attempts.reduce((s, a) => s + (a.correct ? 10 : 2), 0) +
+    attempts.reduce((s, a) => s + (a.correct ? 10 : (a.solved ?? a.correct) ? 5 : 2), 0) +
     drills.reduce((s, d) => s + 5 + d.correct, 0) +
     games.filter((g) => g.reviewed).length * 15 +
     (extra.lineAttempts?.length ?? 0) * 5 +
-    (extra.positionAttempts ?? []).reduce((s, a) => s + (a.correct ? 15 : 3), 0) +
+    (extra.positionAttempts ?? []).reduce((s, a) => s + (a.correct ? 15 : (a.solved ?? a.correct) ? 8 : 3), 0) +
     (extra.daysDone?.length ?? 0) * 25 +
     (extra.weeksMet ?? 0) * 50
   )
@@ -144,7 +144,7 @@ export function practiceRating(attempts: PuzzleAttempt[]): number {
 // Lichess themes that describe length/outcome rather than a tactical pattern.
 const GENERIC_THEMES = new Set([
   'short', 'long', 'veryLong', 'oneMove', 'crushing', 'advantage', 'equality', 'middlegame',
-  'opening', 'endgame', 'master', 'masterVsMaster', 'superGM', 'mate',
+  'opening', 'endgame', 'master', 'masterVsMaster', 'superGM', 'mate', 'strategy', 'endgameTheory',
 ])
 
 export interface ThemeStat {

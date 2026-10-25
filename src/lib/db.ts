@@ -48,7 +48,10 @@ export interface LineAttempt {
   date: string
   day: string
   mode: 'learn' | 'drill'
+  /** Drill played from memory without any mistake. */
   correct: boolean
+  /** Completed without asking for the arrow (mistakes corrected by yourself allowed). */
+  solved?: boolean
 }
 
 export interface RatingEntry {
@@ -137,7 +140,10 @@ export interface PositionAttempt {
   posId: string
   date: string
   day: string
+  /** Found at the first try. */
   correct: boolean
+  /** Found without revealing the answer (retries allowed). Missing on old records = correct. */
+  solved?: boolean
 }
 
 export interface PuzzleAttempt {
@@ -146,7 +152,10 @@ export interface PuzzleAttempt {
   date: string
   day: string // YYYY-MM-DD (local)
   cat: Activity | 'opening'
+  /** Solved at the first try, without a hint (used for accuracy). */
   correct: boolean
+  /** Finished without showing the solution (retries allowed). Missing on old records = correct. */
+  solved?: boolean
   rating: number
   themes: string[]
   seconds: number

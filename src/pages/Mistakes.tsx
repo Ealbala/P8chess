@@ -101,7 +101,7 @@ function PositionRow({ pos, data }: { pos: MistakePosition; data: AppData }) {
   )
 }
 
-type Stage = 'solve' | 'checking' | 'result'
+type Stage = 'solve' | 'checking' | 'wrong' | 'result'
 
 export function MistakeTrainer({ data }: { data: AppData }) {
   const t = useT()
@@ -115,6 +115,9 @@ export function MistakeTrainer({ data }: { data: AppData }) {
   const [fen, setFen] = useState(pos?.fen ?? '')
   const [answer, setAnswer] = useState<{ san: string; uci: string; cp: number | null; good: boolean; exact: boolean } | null>(null)
   const [lineStep, setLineStep] = useState(0)
+  const [wrongs, setWrongs] = useState(0)
+  const [hint, setHint] = useState(false)
+  const [revealed, setRevealed] = useState(false)
   const recorded = useRef(false)
 
   useEffect(() => {
@@ -123,6 +126,9 @@ export function MistakeTrainer({ data }: { data: AppData }) {
     setFen(pos?.fen ?? '')
     setAnswer(null)
     setLineStep(0)
+    setWrongs(0)
+    setHint(false)
+    setRevealed(false)
     recorded.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
@@ -144,17 +150,20 @@ export function MistakeTrainer({ data }: { data: AppData }) {
 
   if (!pos) return <div className="p-4">—</div>
 
-  async function record(correct: boolean) {
+  /** correct = first try without hint; solved = found it without revealing the answer. */
+  async function record(correct: boolean, solved: boolean) {
     if (recorded.current || !pos) return
     recorded.current = true
     await db.transaction('rw', db.positions, db.positionAttempts, async () => {
       await db.positions.update(pos.id, nextSrs(pos, correct))
-      await db.positionAttempts.add({ posId: pos.id, date: new Date().toISOString(), day: dayKey(), correct })
+      await db.positionAttempts.add({ posId: pos.id, date: new Date().toISOString(), day: dayKey(), correct, solved })
     })
   }
 
+  const clean = () => wrongs === 0 && !hint
+
   function onMove(from: Square, to: Square, promotion?: string): boolean {
-    if (stage !== 'solve' || !pos) return false
+    if ((stage !== 'solve' && stage !== 'wrong') || !pos) return false
     const c = new Chess(pos.fen)
     let m
     try {
@@ -167,7 +176,7 @@ export function MistakeTrainer({ data }: { data: AppData }) {
     if (uci === pos.bestUci) {
       setAnswer({ san: m.san, uci, cp: pos.evalBest, good: true, exact: true })
       setStage('result')
-      record(true)
+      record(clean(), true)
       return true
     }
     // Not the engine's first choice: check how much worse it is.
@@ -183,18 +192,33 @@ export function MistakeTrainer({ data }: { data: AppData }) {
     else cp = -(await engine.analyse(c.fen(), ANALYSIS_DEPTH + 2)).cp
     // "Good" = within 5 points of winning chances of the best move.
     const good = winPercent(cp) >= winPercent(pos!.evalBest) - 5
-    setAnswer({ san, uci, cp, good, exact: false })
-    setStage('result')
-    record(good)
+    if (good) {
+      setAnswer({ san, uci, cp, good, exact: false })
+      setStage('result')
+      record(clean(), true)
+      return
+    }
+    // Wrong: don't show the answer — put the position back and let you think again.
+    setWrongs((w) => w + 1)
+    setFen(pos!.fen)
+    setStage('wrong')
   }
 
-  function retry() {
-    setFen(pos!.fen)
+  function reveal() {
+    setRevealed(true)
     setAnswer(null)
-    setStage('solve')
+    setFen(pos!.fen)
+    setStage('result')
+    record(false, false)
   }
 
   function next() {
+    // Leaving after a wrong try without finding it counts as not solved.
+    if (!recorded.current && wrongs > 0) record(false, false)
+    goNext()
+  }
+
+  function goNext() {
     const due = duePositions(data.positions).filter((p) => p.id !== pos!.id)
     if (due.length) navigate(`/train/mistakes/${due[0].id}`, { replace: true })
     else navigate('/train/mistakes', { replace: true })
@@ -223,11 +247,11 @@ export function MistakeTrainer({ data }: { data: AppData }) {
       </div>
       <div
         className={`rounded-xl px-3 py-2 text-center text-sm font-semibold ${
-          stage === 'result'
-            ? answer?.good
+          stage === 'wrong' || (stage === 'result' && revealed)
+            ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+            : stage === 'result'
               ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
-              : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
-            : 'bg-slate-100 dark:bg-slate-800'
+              : 'bg-slate-100 dark:bg-slate-800'
         }`}
       >
         {stage === 'solve' &&
@@ -237,10 +261,35 @@ export function MistakeTrainer({ data }: { data: AppData }) {
             n: moveNo,
           })}
         {stage === 'checking' && t('mk.checking')}
-        {stage === 'result' && (answer?.exact ? `✓ ${t('mk.correct')}` : answer?.good ? `✓ ${t('mk.alsoGood')}` : `✗ ${t('mk.wrong')}`)}
+        {stage === 'wrong' && `✗ ${t('mk.wrongRetry')}`}
+        {stage === 'result' &&
+          (revealed
+            ? t('mk.revealed')
+            : answer?.exact
+              ? `✓ ${t('mk.correct')}${wrongs ? ` (${t('train.tries', { n: wrongs + 1 })})` : ''}`
+              : `✓ ${t('mk.alsoGood')}`)}
       </div>
 
-      <Board fen={shownFen} orientation={pos.color} onMove={onMove} interactive={stage === 'solve'} arrows={arrows} lastMove={last} />
+      <Board
+        fen={shownFen}
+        orientation={pos.color}
+        onMove={onMove}
+        interactive={stage === 'solve' || stage === 'wrong'}
+        arrows={arrows}
+        lastMove={last}
+        marks={hint && stage !== 'result' ? { [pos.bestUci.slice(0, 2)]: { boxShadow: 'inset 0 0 0 4px rgba(37,99,235,.9)' } } : undefined}
+      />
+
+      {(stage === 'solve' || stage === 'wrong') && (
+        <div className="flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={() => setHint(true)} disabled={hint}>
+            💡 {t('train.hint')}
+          </Button>
+          <Button variant="ghost" className="flex-1" onClick={reveal}>
+            {t('mk.showAnswer')}
+          </Button>
+        </div>
+      )}
 
       {stage === 'result' && (
         <>
@@ -295,21 +344,10 @@ export function MistakeTrainer({ data }: { data: AppData }) {
             <Button variant="secondary" className="px-2 text-sm" onClick={() => setLineStep(Math.min(lineFens.length, lineStep + 1))}>
               ▶ {t('mk.playLine')}
             </Button>
-            {answer?.good ? (
-              <Button className="px-2 text-sm" onClick={next}>
-                {t('common.next')} →
-              </Button>
-            ) : (
-              <Button className="px-2 text-sm" onClick={retry}>
-                {t('train.retry')}
-              </Button>
-            )}
-          </div>
-          {!answer?.good && (
-            <Button variant="ghost" onClick={next}>
+            <Button className="px-2 text-sm" onClick={next}>
               {t('common.next')} →
             </Button>
-          )}
+          </div>
           <Button
             variant="secondary"
             onClick={() =>
