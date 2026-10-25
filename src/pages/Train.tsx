@@ -1,0 +1,90 @@
+import { Link, Route, Routes, useParams } from 'react-router'
+import type { AppData } from '../lib/data'
+import type { Settings } from '../lib/db'
+import { useT } from '../lib/i18n'
+import { todaysPlan } from '../lib/plan'
+import type { PuzzleCat } from '../lib/puzzles'
+import { Card, ProgressBar, SectionTitle } from '../components/ui'
+import PuzzleTrainer from '../components/PuzzleTrainer'
+import CoordsDrill from '../components/CoordsDrill'
+import { ACT_ICON } from './Dashboard'
+
+
+export default function Train({ data }: { data: AppData }) {
+  return (
+    <Routes>
+      <Route index element={<TrainHome data={data} />} />
+      <Route path="puzzles/:cat" element={<PuzzleRoute data={data} />} />
+      <Route path="blindfold" element={<CoordsDrill data={data} />} />
+    </Routes>
+  )
+}
+
+const LINK: Record<string, string> = {
+  tactics: 'puzzles/tactics',
+  calculation: 'puzzles/calculation',
+  endgame: 'puzzles/endgame',
+  blindfold: 'blindfold',
+  review: '/games',
+}
+
+function TrainHome({ data }: { data: AppData }) {
+  const t = useT()
+  const plan = todaysPlan(data)
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <h1 className="text-2xl font-bold">{t('train.title')}</h1>
+      <Card>
+        <SectionTitle right={<Link to="/settings" className="text-xs text-slate-400">{t('train.changeDuration')}</Link>}>
+          {t('train.plan', { n: data.settings.dailyMinutes })}
+        </SectionTitle>
+        <div className="flex flex-col gap-2">
+          {plan.map((p) => (
+            <Link
+              key={p.activity}
+              to={LINK[p.activity]}
+              className={`flex items-center gap-3 rounded-xl p-3 ring-1 transition active:scale-[0.99] ${
+                p.complete
+                  ? 'bg-green-50 ring-green-200 dark:bg-green-900/20 dark:ring-green-900'
+                  : 'ring-slate-200 hover:bg-slate-50 dark:ring-slate-700 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span className="text-2xl">{p.complete ? '✅' : ACT_ICON[p.activity]}</span>
+              <div className="flex-1">
+                <div className="font-semibold">{t(`act.${p.activity}`)}</div>
+                <div className="mb-1 text-xs text-slate-500">
+                  {Math.min(p.done, p.target)}/{p.target} {t(`unit.${p.activity}`)}
+                </div>
+                <ProgressBar value={p.done / p.target} />
+              </div>
+              <span className="text-slate-400">›</span>
+            </Link>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle>{t('train.free')}</SectionTitle>
+        <div className="grid grid-cols-2 gap-2">
+          {(['tactics', 'calculation', 'endgame', 'blindfold'] as const).map((a) => (
+            <Link
+              key={a}
+              to={LINK[a]}
+              className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800"
+            >
+              <span className="text-2xl">{ACT_ICON[a]}</span>
+              {t(`act.${a}`)}
+            </Link>
+          ))}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function PuzzleRoute({ data }: { data: AppData }) {
+  const { cat } = useParams()
+  const valid: PuzzleCat[] = ['tactics', 'calculation', 'endgame']
+  if (!valid.includes(cat as PuzzleCat)) return null
+  return <PuzzleTrainer key={cat} cat={cat as PuzzleCat} data={data} />
+}
