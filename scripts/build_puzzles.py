@@ -84,15 +84,48 @@ with open(SRC, newline="") as f:
 PER_BAND = {"tactics": 45, "calculation": 25, "middlegame": 30, "endgame": 35}
 PER_BAND_OPENING = 12
 result = []
+chosen = set()
 for (key, band), items in sorted(buckets.items()):
     random.shuffle(items)
-    result.extend(items[: PER_BAND.get(key, PER_BAND_OPENING)])
+    for p in items[: PER_BAND.get(key, PER_BAND_OPENING)]:
+        result.append(p)
+        chosen.add(p["id"])
+
+# Theme sections (training tracks): make sure every key theme has puzzles at every level.
+KEY_THEMES = [
+    "fork", "pin", "skewer", "xRayAttack", "discoveredAttack", "doubleCheck", "mateIn1", "mateIn2",
+    "mateIn3", "backRankMate", "sacrifice", "attraction", "deflection", "clearance", "interference",
+    "capturingDefender", "defensiveMove", "quietMove", "intermezzo", "hangingPiece", "trappedPiece",
+    "kingsideAttack", "exposedKing", "attackingF2F7", "advancedPawn", "promotion", "pawnEndgame",
+    "rookEndgame", "bishopEndgame", "knightEndgame", "queenEndgame", "zugzwang",
+]
+PER_THEME_BAND = 8
+by_theme = defaultdict(list)
+for items in buckets.values():
+    for p in items:
+        for t in p["themes"]:
+            if t in KEY_THEMES:
+                by_theme[(t, p["rating"] // 100)].append(p)
+for (theme, band), items in sorted(by_theme.items()):
+    have = sum(1 for p in result if theme in p["themes"] and p["rating"] // 100 == band)
+    random.shuffle(items)
+    for p in items:
+        if have >= PER_THEME_BAND:
+            break
+        if p["id"] not in chosen:
+            result.append(p)
+            chosen.add(p["id"])
+            have += 1
 
 with open(OUT, "w") as f:
     json.dump(result, f, separators=(",", ":"))
 
 counts = defaultdict(int)
+theme_counts = defaultdict(int)
 for p in result:
+    for t in p["themes"]:
+        theme_counts[t] += 1
     for o in p.get("openings", [p["cat"]]):
         counts[o] += 1
 print(f"Wrote {len(result)} puzzles to {OUT}: {dict(sorted(counts.items()))}")
+print("Key themes:", {t: theme_counts[t] for t in KEY_THEMES})

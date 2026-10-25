@@ -27,7 +27,7 @@ export function areaStats(attempts: PuzzleAttempt[], lineAttempts: LineAttempt[]
       ;({ n, accuracy } = drillAccuracy(lineAttempts, WINDOW))
     } else {
       const list = attempts
-        .filter((a) => a.cat === area)
+        .filter((a) => a.cat === area && !a.rush)
         .sort((a, b) => b.date.localeCompare(a.date))
         .slice(0, WINDOW)
       n = list.length
