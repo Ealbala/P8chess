@@ -3,7 +3,7 @@
 Tu entrenador personal de ajedrez: una app web instalable (PWA) que funciona en iPhone, tablet y computadora.
 Publicada en https://p8chess.vercel.app
 
-**Estado actual: Fase 2 (integración con Chess.com).** Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
+**Estado actual: Fase 2 completa + parte de la Fase 4 (aperturas, medio juego, prioridad por área floja).** Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
 
 ## Qué hace la Fase 1
 
@@ -119,3 +119,18 @@ src/
   pages/              Dashboard, Train, Games, Board, Settings, Onboarding
 public/data/puzzles.json   problemas de Lichess (generados con scripts/build_puzzles.py)
 ```
+
+## Aperturas, áreas y prioridad (Fase 4, parte)
+
+- **Repertorio** (`src/data/openings.ts`): tu Colle (blancas), Francesa y ...e6/...d5 contra 1.d4 (negras), detectados de tus partidas. Para aprender: Sistema Londres, Italiana y Caro-Kann. Cada jugada está verificada por un test de legalidad.
+- **Aprender / Repasar**: en modo aprender, una flecha marca tu jugada y una nota la explica; en repaso jugás de memoria. Repetición espaciada: 1, 3, 7, 14, 30 y 60 días; un error vuelve la línea a mañana.
+- **Tus partidas vs. tu repertorio**: hasta dónde llegás dentro del libro, qué jugadas rivales todavía no cubrís y dónde te salís vos.
+- **Tácticas típicas de cada apertura**: ejercicios de Lichess etiquetados con esa apertura.
+- **Medio juego**: ejercicios de Lichess de medio juego con temas de ataque, defensa y jugadas tranquilas.
+- **Prioridad**: % de acierto en tus últimos 30 intentos por área (mín. 10 para clasificar). El área más floja recibe +50% en el plan diario.
+
+## Créditos
+
+- Ejercicios: base de datos de Lichess (CC0).
+- Caballo del logo y piezas del tablero: set "cburnett" de Colin M.L. Burnett (licencias BSD/GPL/GFDL).
+

@@ -12,7 +12,7 @@ import {
 } from '../lib/stats'
 import { Card, ProgressBar, SectionTitle, Segmented, Stat } from '../components/ui'
 
-export const ACT_ICON = { tactics: '⚔️', calculation: '🧠', endgame: '🏁', blindfold: '🙈', review: '🔍' } as const
+export const ACT_ICON = { openings: '📖', tactics: '⚔️', calculation: '🧠', middlegame: '🏰', endgame: '🏁', blindfold: '🙈', review: '🔍' } as const
 
 export default function Dashboard({ data }: { data: AppData }) {
   const t = useT()
@@ -62,9 +62,12 @@ export default function Dashboard({ data }: { data: AppData }) {
   return (
     <div className="flex flex-col gap-4 p-4">
       <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold">♞ {t('app.name')}</h1>
-          <p className="text-sm font-semibold text-green-600 dark:text-green-400">{t('app.slogan')}</p>
+        <div className="flex items-center gap-3">
+          <img src={`${import.meta.env.BASE_URL}icons/icon.svg`} alt="" className="h-12 w-12 rounded-xl shadow-sm" />
+          <div>
+            <h1 className="text-2xl font-extrabold leading-tight">{t('app.name')}</h1>
+            <p className="text-sm font-semibold text-green-600 dark:text-green-400">{t('app.slogan')}</p>
+          </div>
         </div>
         <div className="text-right">
           <div className="text-sm font-bold text-green-600 dark:text-green-400">

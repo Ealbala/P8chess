@@ -1,4 +1,6 @@
-import { Link, Route, Routes, useParams } from 'react-router'
+import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
+import { OpeningDetail, OpeningsHome, LineRoute } from './Openings'
+import { areaStats, endgameScore, priority } from '../lib/areas'
 import type { AppData } from '../lib/data'
 import type { Settings } from '../lib/db'
 import { useT } from '../lib/i18n'
@@ -15,12 +17,17 @@ export default function Train({ data }: { data: AppData }) {
     <Routes>
       <Route index element={<TrainHome data={data} />} />
       <Route path="puzzles/:cat" element={<PuzzleRoute data={data} />} />
+      <Route path="openings" element={<OpeningsHome data={data} />} />
+      <Route path="openings/:id" element={<OpeningDetail data={data} />} />
+      <Route path="line/:lineId" element={<LineRoute data={data} />} />
       <Route path="blindfold" element={<CoordsDrill data={data} />} />
     </Routes>
   )
 }
 
 const LINK: Record<string, string> = {
+  openings: 'openings',
+  middlegame: 'puzzles/middlegame',
   tactics: 'puzzles/tactics',
   calculation: 'puzzles/calculation',
   endgame: 'puzzles/endgame',
@@ -51,7 +58,10 @@ function TrainHome({ data }: { data: AppData }) {
             >
               <span className="text-2xl">{p.complete ? '✅' : ACT_ICON[p.activity]}</span>
               <div className="flex-1">
-                <div className="font-semibold">{t(`act.${p.activity}`)}</div>
+                <div className="font-semibold">
+                  {t(`act.${p.activity}`)}
+                  {p.boosted && <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/40 dark:text-red-200">🎯 {t('plan.boost')}</span>}
+                </div>
                 <div className="mb-1 text-xs text-slate-500">
                   {Math.min(p.done, p.target)}/{p.target} {t(`unit.${p.activity}`)}
                 </div>
@@ -63,10 +73,12 @@ function TrainHome({ data }: { data: AppData }) {
         </div>
       </Card>
 
+      <PriorityCard data={data} />
+
       <Card>
         <SectionTitle>{t('train.free')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
-          {(['tactics', 'calculation', 'endgame', 'blindfold'] as const).map((a) => (
+          {(['openings', 'tactics', 'calculation', 'middlegame', 'endgame', 'blindfold'] as const).map((a) => (
             <Link
               key={a}
               to={LINK[a]}
@@ -84,7 +96,51 @@ function TrainHome({ data }: { data: AppData }) {
 
 function PuzzleRoute({ data }: { data: AppData }) {
   const { cat } = useParams()
-  const valid: PuzzleCat[] = ['tactics', 'calculation', 'endgame']
+  const [params] = useSearchParams()
+  const valid: PuzzleCat[] = ['tactics', 'calculation', 'middlegame', 'endgame', 'opening']
   if (!valid.includes(cat as PuzzleCat)) return null
-  return <PuzzleTrainer key={cat} cat={cat as PuzzleCat} data={data} />
+  const openingId = params.get('o') ?? undefined
+  return <PuzzleTrainer key={`${cat}-${openingId}`} cat={cat as PuzzleCat} data={data} openingId={openingId} />
+}
+
+function PriorityCard({ data }: { data: AppData }) {
+  const t = useT()
+  const stats = areaStats(data.attempts, data.lineAttempts)
+  const ranked = priority(stats)
+  const weakest = ranked[0]
+  const eg = endgameScore(data.games.filter((g) => g.tc === data.settings.focus))
+  const order = [...ranked, ...stats.filter((s) => !s.calibrated)]
+  return (
+    <Card className="flex flex-col gap-2 text-sm">
+      <SectionTitle>🎯 {t('prio.title')}</SectionTitle>
+      {weakest ? (
+        <p className="font-semibold">
+          {t('prio.weakest', { area: t(`area.${weakest.area}`), pct: Math.round(weakest.accuracy * 100), n: weakest.n })}
+        </p>
+      ) : (
+        <p>{t('prio.calibrate')}</p>
+      )}
+      {order.map((s) => (
+        <div key={s.area} className="flex items-center gap-2">
+          <span className="w-24 shrink-0">{t(`area.${s.area}`)}</span>
+          {s.calibrated ? (
+            <>
+              <div className="flex-1">
+                <ProgressBar value={s.accuracy} color={s === weakest ? 'bg-red-400' : 'bg-green-500'} />
+              </div>
+              <span className="w-10 text-right font-semibold">{Math.round(s.accuracy * 100)}%</span>
+            </>
+          ) : (
+            <span className="text-xs text-slate-400">{t('prio.calibrating', { n: s.n })}</span>
+          )}
+        </div>
+      ))}
+      {eg.endgames >= 5 && (
+        <p className="text-xs text-slate-500">
+          🏁 {t('prio.endgameGames', { s: eg.endgameScore, n: eg.endgames, t: eg.totalScore })}
+        </p>
+      )}
+      <p className="text-xs text-slate-400">{t('prio.note')}</p>
+    </Card>
+  )
 }

@@ -1,7 +1,6 @@
 // Puzzle trainer: the opponent's first move is played automatically, then you must find
 // the solution moves. Answers are checked against the Lichess solution (or any mate-in-one).
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
 import { Chess, type Square } from 'chess.js'
 import type { AppData } from '../lib/data'
 import { db } from '../lib/db'
@@ -11,7 +10,13 @@ import { todaysPlan } from '../lib/plan'
 import { loadPuzzles, pickPuzzle, type Puzzle, type PuzzleCat } from '../lib/puzzles'
 import { practiceRating, themeStats } from '../lib/stats'
 import Board from './Board'
+import { OPENINGS } from '../data/openings'
 import { Button, Card, ProgressBar } from './ui'
+
+function openingTitle(id: string, lang: 'en' | 'es') {
+  const o = OPENINGS.find((x) => x.id === id)
+  return o ? `${o.name[lang]} · ⚔️` : id
+}
 
 type Status = 'loading' | 'empty' | 'intro' | 'playing' | 'wrong' | 'solved' | 'failed'
 
@@ -19,7 +24,7 @@ function uciToMove(uci: string) {
   return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci[4] : undefined }
 }
 
-export default function PuzzleTrainer({ cat, data }: { cat: PuzzleCat; data: AppData }) {
+export default function PuzzleTrainer({ cat, data, openingId }: { cat: PuzzleCat; data: AppData; openingId?: string }) {
   const t = useT()
   const lang = useLang()
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null)
@@ -54,7 +59,7 @@ export default function PuzzleTrainer({ cat, data }: { cat: PuzzleCat; data: App
     const all = await loadPuzzles()
     const { attempts } = dataRef.current
     const weak = themeStats(attempts).filter((s) => s.accuracy < 0.6).slice(0, 3).map((s) => s.theme)
-    const p = pickPuzzle(all, cat, practiceRating(attempts), attempts, weak, seen.current)
+    const p = pickPuzzle(all, cat, practiceRating(attempts), attempts, weak, seen.current, openingId)
     if (!p) {
       setStatus('empty')
       return
@@ -75,7 +80,7 @@ export default function PuzzleTrainer({ cat, data }: { cat: PuzzleCat; data: App
       startedAt.current = Date.now()
       setStatus('playing')
     }, 700)
-  }, [cat])
+  }, [cat, openingId])
 
   useEffect(() => {
     next()
@@ -163,15 +168,16 @@ export default function PuzzleTrainer({ cat, data }: { cat: PuzzleCat; data: App
 
   const plan = todaysPlan(data)
   const item = plan.find((p) => p.activity === cat)
+
   const solverColor = puzzle ? (new Chess(puzzle.fen).turn() === 'w' ? 'black' : 'white') : 'white'
 
   return (
     <div className="flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <Link to="/train" className="text-sm font-semibold text-green-600">
+        <button onClick={() => history.back()} className="text-sm font-semibold text-green-600">
           ← {t('common.back')}
-        </Link>
-        <h1 className="font-bold">{t(`act.${cat}`)}</h1>
+        </button>
+        <h1 className="font-bold">{openingId ? openingTitle(openingId, lang) : t(`act.${cat}`)}</h1>
         <span className="w-12 text-right text-xs text-slate-500">{item ? `${Math.min(item.done, item.target)}/${item.target}` : ''}</span>
       </div>
       {item && <ProgressBar value={item.done / item.target} />}

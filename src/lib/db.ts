@@ -3,7 +3,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 
 export type TimeControl = 'rapid' | 'blitz' | 'bullet'
-export type Activity = 'tactics' | 'calculation' | 'endgame' | 'blindfold' | 'review'
+export type Activity = 'openings' | 'tactics' | 'calculation' | 'middlegame' | 'endgame' | 'blindfold' | 'review'
 export type Lang = 'en' | 'es'
 export type ThemePref = 'system' | 'light' | 'dark'
 
@@ -21,6 +21,24 @@ export interface Settings {
   dailyMinutes: 10 | 20 | 30 | 45 | 60
   chessComUsername: string
   createdAt: string
+  /** Opening ids in your repertoire (see src/data/openings.ts). Missing = starter openings. */
+  repertoire?: string[]
+}
+
+/** Spaced-repetition state of one opening line. */
+export interface LineProgress {
+  lineId: string
+  box: number // 1..6 — higher = better known
+  due: string // YYYY-MM-DD
+}
+
+export interface LineAttempt {
+  id?: number
+  lineId: string
+  date: string
+  day: string
+  mode: 'learn' | 'drill'
+  correct: boolean
 }
 
 export interface RatingEntry {
@@ -70,7 +88,7 @@ export interface PuzzleAttempt {
   puzzleId: string
   date: string
   day: string // YYYY-MM-DD (local)
-  cat: Activity
+  cat: Activity | 'opening'
   correct: boolean
   rating: number
   themes: string[]
@@ -93,6 +111,8 @@ export interface Meta {
 }
 
 export const db = new Dexie('my-chess-coach') as Dexie & {
+  lineProgress: EntityTable<LineProgress, 'lineId'>
+  lineAttempts: EntityTable<LineAttempt, 'id'>
   settings: EntityTable<Settings, 'id'>
   ratings: EntityTable<RatingEntry, 'id'>
   games: EntityTable<Game, 'id'>
@@ -112,6 +132,11 @@ db.version(1).stores({
 // v2: Chess.com import — unique game uuid prevents duplicates.
 db.version(2).stores({
   games: '++id, date, tc, &uuid',
+})
+// v3: opening trainer.
+db.version(3).stores({
+  lineProgress: 'lineId',
+  lineAttempts: '++id, lineId, day',
 })
 
 export const defaultSettings = (): Settings => ({
@@ -138,6 +163,8 @@ export async function exportData(): Promise<string> {
     attempts: await db.attempts.toArray(),
     drills: await db.drills.toArray(),
     meta: await db.meta.toArray(),
+    lineProgress: await db.lineProgress.toArray(),
+    lineAttempts: await db.lineAttempts.toArray(),
   }
   return JSON.stringify(data)
 }
@@ -145,8 +172,11 @@ export async function exportData(): Promise<string> {
 export async function importData(json: string) {
   const data = JSON.parse(json)
   if (data.app !== 'my-chess-coach') throw new Error('Not a My Chess Coach backup file')
-  await db.transaction('rw', [db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta], async () => {
-    await Promise.all([db.settings.clear(), db.ratings.clear(), db.games.clear(), db.attempts.clear(), db.drills.clear(), db.meta.clear()])
+  const tables = [db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta, db.lineProgress, db.lineAttempts]
+  await db.transaction('rw', tables, async () => {
+    await Promise.all(tables.map((t) => t.clear()))
+    await db.lineProgress.bulkAdd(data.lineProgress ?? [])
+    await db.lineAttempts.bulkAdd(data.lineAttempts ?? [])
     await db.settings.bulkAdd(data.settings ?? [])
     await db.ratings.bulkAdd(data.ratings ?? [])
     await db.games.bulkAdd(data.games ?? [])

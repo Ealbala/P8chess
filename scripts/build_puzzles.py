@@ -6,8 +6,10 @@ Usage:
   2. Decompress it to lichess_db_puzzle.csv (e.g. with `zstd -d`)
   3. python3 scripts/build_puzzles.py path/to/lichess_db_puzzle.csv
 
-We keep a small, well-tested subset (popular puzzles with stable ratings)
-so the app works offline and loads quickly on a phone.
+We keep a small, well-tested subset (popular puzzles with stable ratings) so the app
+works offline and loads quickly on a phone. Each puzzle gets exactly one category:
+endgame > opening (tagged with one of our openings) > calculation (long) > middlegame
+(attack/defence/quiet-move themes) > tactics.
 """
 import csv
 import json
@@ -18,8 +20,27 @@ from collections import defaultdict
 SRC = sys.argv[1] if len(sys.argv) > 1 else "lichess_db_puzzle.csv"
 OUT = "public/data/puzzles.json"
 
+# Lichess opening tags → opening ids used in src/data/openings.ts
+OPENING_TAGS = {
+    "French_Defense": "french",
+    "Queens_Pawn_Game_Colle_System": "colle",
+    "Queens_Pawn_Game_Zukertort_Variation": "colle",
+    "Queens_Pawn_Game": "colle",
+    "Queens_Gambit_Declined": "qgd",
+    "London_System": "london",
+    "Queens_Pawn_Game_London_System": "london",
+    "Indian_Defense_London_System": "london",
+    "Italian_Game": "italian",
+    "Caro-Kann_Defense": "caro",
+    "Englund_Gambit": "colle",
+}
+MIDDLEGAME = {
+    "kingsideAttack", "queensideAttack", "exposedKing", "defensiveMove", "quietMove", "intermezzo",
+    "clearance", "attackingF2F7", "advancedPawn", "trappedPiece", "capturingDefender", "interference",
+}
+
 random.seed(42)
-buckets = defaultdict(list)  # (category, rating band) -> puzzles
+buckets = defaultdict(list)  # (category or opening id, rating band) -> puzzles
 
 with open(SRC, newline="") as f:
     for row in csv.DictReader(f):
@@ -33,34 +54,45 @@ with open(SRC, newline="") as f:
         if not (900 <= rating <= 2300) or rd > 90 or pop < 85 or plays < 800:
             continue
         themes = row["Themes"].split()
+        openings = sorted({OPENING_TAGS[t] for t in row["OpeningTags"].split() if t in OPENING_TAGS})
         if "endgame" in themes:
             cat = "endgame"
+        elif openings and "opening" in themes:
+            cat = "opening"
         elif "long" in themes or "veryLong" in themes:
             cat = "calculation"
+        elif "middlegame" in themes and MIDDLEGAME.intersection(themes):
+            cat = "middlegame"
         else:
             cat = "tactics"
-        band = rating // 100
-        buckets[(cat, band)].append(
-            {
-                "id": row["PuzzleId"],
-                "fen": row["FEN"],
-                "moves": row["Moves"].split(),
-                "rating": rating,
-                "themes": themes,
-                "cat": cat,
-            }
-        )
+        puzzle = {
+            "id": row["PuzzleId"],
+            "fen": row["FEN"],
+            "moves": row["Moves"].split(),
+            "rating": rating,
+            "themes": themes,
+            "cat": cat,
+        }
+        if cat == "opening":
+            puzzle["openings"] = openings
+            # "colle" also catches generic Queen's Pawn tags, so prefer a more specific opening.
+            key = next((o for o in openings if o != "colle"), "colle")
+        else:
+            key = cat
+        buckets[(key, rating // 100)].append(puzzle)
 
-PER_BAND = {"tactics": 45, "calculation": 25, "endgame": 25}
+PER_BAND = {"tactics": 45, "calculation": 25, "middlegame": 30, "endgame": 35}
+PER_BAND_OPENING = 12
 result = []
-for (cat, band), items in sorted(buckets.items()):
+for (key, band), items in sorted(buckets.items()):
     random.shuffle(items)
-    result.extend(items[: PER_BAND[cat]])
+    result.extend(items[: PER_BAND.get(key, PER_BAND_OPENING)])
 
 with open(OUT, "w") as f:
     json.dump(result, f, separators=(",", ":"))
 
 counts = defaultdict(int)
 for p in result:
-    counts[p["cat"]] += 1
-print(f"Wrote {len(result)} puzzles to {OUT}: {dict(counts)}")
+    for o in p.get("openings", [p["cat"]]):
+        counts[o] += 1
+print(f"Wrote {len(result)} puzzles to {OUT}: {dict(sorted(counts.items()))}")
