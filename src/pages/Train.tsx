@@ -5,6 +5,7 @@ import { BlindGame, BlindfoldHome, CalcDrill, MemoryDrill, MovesDrill } from './
 import { EndgameTrainer, EndgamesHome } from './Endgames'
 import { StrategyHome, StrategyTrainer } from './Strategy'
 import History from './History'
+import Lesson from './Lesson'
 import { Rush, SessionRunner, TrackPage, TrainingHub } from './Training'
 import { areaStats, endgameScore, priority, weakestArea } from '../lib/areas'
 import { errorRates } from '../lib/analysis'
@@ -43,6 +44,7 @@ export default function Train({ data }: { data: AppData }) {
       <Route path="history" element={<History data={data} />} />
       <Route path="practice" element={<TrainingHub data={data} />} />
       <Route path="track/:id" element={<TrackPage data={data} />} />
+      <Route path="lesson/:id" element={<Lesson />} />
       <Route path="session" element={<SessionRunner key={loc.search} data={data} />} />
       <Route path="rush" element={<Rush key={loc.search} data={data} />} />
       <Route path="puzzle/:id" element={<PuzzleById data={data} />} />

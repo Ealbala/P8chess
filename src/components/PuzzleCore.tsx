@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Chess, type Square } from 'chess.js'
 import Board from './Board'
+import ExplainPlayer from './ExplainPlayer'
 import { Button, Card } from './ui'
 import { themeName, useLang, useT } from '../lib/i18n'
 import type { Puzzle } from '../lib/puzzles'
@@ -45,6 +46,7 @@ export default function PuzzleCore({
   const [message, setMessage] = useState('')
   const [hintSquare, setHintSquare] = useState<string | null>(null)
   const [wrongs, setWrongs] = useState(0)
+  const [explaining, setExplaining] = useState(false)
   const game = useRef(new Chess(puzzle.fen))
   const step = useRef(0)
   const wrongCount = useRef(0)
@@ -150,19 +152,6 @@ export default function PuzzleCore({
     playFrom(step.current)
   }
 
-  function replay() {
-    timers.current.forEach(clearTimeout)
-    game.current = new Chess(puzzle.fen)
-    setFen(puzzle.fen)
-    setLastMove(null)
-    const playFrom = (i: number) => {
-      if (i >= puzzle.moves.length) return
-      applyUci(puzzle.moves[i])
-      later(() => playFrom(i + 1), 900)
-    }
-    later(() => playFrom(0), 400)
-  }
-
   const solverColor = new Chess(puzzle.fen).turn() === 'w' ? 'black' : 'white'
   const done = status === 'solved' || status === 'failed'
 
@@ -182,14 +171,14 @@ export default function PuzzleCore({
           : message || `${t('train.yourMove')} · ${t('train.playAs', { color: t(solverColor === 'white' ? 'games.white' : 'games.black') })}`}
       </div>
 
-      <Board
+      {!explaining && <Board
         fen={fen}
         orientation={solverColor}
         onMove={onMove}
         interactive={status === 'playing' || status === 'wrong'}
         lastMove={lastMove}
         marks={hintSquare ? { [hintSquare]: { boxShadow: 'inset 0 0 0 4px rgba(37,99,235,.9)' } } : undefined}
-      />
+      />}
 
       {mode === 'learn' && (status === 'playing' || status === 'wrong') && (
         <div className="flex gap-2">
@@ -203,10 +192,16 @@ export default function PuzzleCore({
       )}
       {mode === 'learn' && wrongs > 0 && !done && <p className="text-center text-xs text-slate-500">{t('train.tries', { n: wrongs })}</p>}
 
+      {mode === 'learn' && done && explaining && (
+        <Card>
+          <ExplainPlayer fen={puzzle.fen} moves={puzzle.moves} />
+        </Card>
+      )}
+
       {mode === 'learn' && done && (
         <div className="flex gap-2">
-          <Button variant="secondary" className="flex-1" onClick={replay}>
-            🔁 {t('train.replay')}
+          <Button variant="secondary" className="flex-1" onClick={() => setExplaining(!explaining)}>
+            {explaining ? `✕ ${t('ex.close')}` : `📺 ${t('ex.explain')}`}
           </Button>
           {onNext && (
             <Button className="flex-1" onClick={onNext}>

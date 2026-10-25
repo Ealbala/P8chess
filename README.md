@@ -168,7 +168,12 @@ public/data/puzzles.json   problemas de Lichess (generados con scripts/build_puz
 - **Puzzle Rush**: 3 min, 5 min o supervivencia, sin reintentos y con 3 vidas. Cada acierto sube la dificultad. Guarda tus récords. No cuenta para los ratings.
 - **Objetivos**: "subir Peones +100". La barra avanza con tu rating de sección y se marca cumplido al llegar.
 
-## Créditos
+## Explicaciones "tipo video"
+
+- **Explicación paso a paso** (al terminar cualquier ejercicio): reproduce la solución jugada por jugada, con flechas y un texto que dice para qué sirve cada movimiento. Se puede leer en voz alta.
+- El texto **se calcula sobre el tablero** (`src/lib/explain.ts`): jaque y jaque doble, capturas, coronación, ataques dobles, ataques a la descubierta, clavadas contra el rey o la dama, piezas sin defensa y el material ganado al final. No hay texto inventado.
+- **Lección animada por sección**: qué es el tema, qué buscar y 3 ejemplos reales explicados, más un botón que abre una búsqueda de videos en YouTube (videos externos, no elegidos por la app).
+
 
 - Ejercicios: base de datos de Lichess (CC0).
 - Finales: tablas de finales de Lichess (tablebase.lichess.ovh).

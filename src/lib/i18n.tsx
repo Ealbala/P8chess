@@ -535,6 +535,17 @@ const en = {
   "goal.line": "{track} → {target}",
   "goal.toGo": "{n} points to go",
   "goal.achievedCount": "{n} goal(s) achieved",
+  "ex.explain": "Step-by-step explanation",
+  "ex.close": "Close explanation",
+  "ex.voice": "Read aloud",
+  "ex.note": "Explanations are computed from the board: checks, captures, double attacks, discovered attacks, pins, undefended pieces and material.",
+  "ex.look": "What to look for",
+  "ex.example": "Example {n}",
+  "ex.practice": "Practise this section (15 min)",
+  "ex.youtube": "Watch videos on YouTube",
+  "ex.youtubeNote": "Opens a YouTube search on this theme (external videos, not chosen by the app).",
+  "ex.lesson": "Animated lesson",
+  "ex.lessonSub": "What it is, what to look for and 3 explained examples",
 } as const
 
 export type TKey = keyof typeof en
@@ -1071,6 +1082,17 @@ const es: Record<TKey, string> = {
   "goal.line": "{track} → {target}",
   "goal.toGo": "faltan {n} puntos",
   "goal.achievedCount": "{n} objetivo(s) cumplido(s)",
+  "ex.explain": "Explicación paso a paso",
+  "ex.close": "Cerrar explicación",
+  "ex.voice": "Leer en voz alta",
+  "ex.note": "Las explicaciones se calculan sobre el tablero: jaques, capturas, ataques dobles, descubiertos, clavadas, piezas sin defensa y material.",
+  "ex.look": "Qué buscar",
+  "ex.example": "Ejemplo {n}",
+  "ex.practice": "Practicar esta sección (15 min)",
+  "ex.youtube": "Ver videos en YouTube",
+  "ex.youtubeNote": "Abre una búsqueda de YouTube sobre este tema (videos externos, no elegidos por la app).",
+  "ex.lesson": "Lección animada",
+  "ex.lessonSub": "Qué es, qué buscar y 3 ejemplos explicados",
 }
 
 const dicts: Record<Lang, Record<TKey, string>> = { en, es }

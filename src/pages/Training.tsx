@@ -7,7 +7,7 @@ import type { AppData } from '../lib/data'
 import { db, type RushResult, type TrainingGoal } from '../lib/db'
 import { useLang, useT } from '../lib/i18n'
 import { loadPuzzles, type Puzzle } from '../lib/puzzles'
-import { TRACKS, findTrack, type Track } from '../data/tracks'
+import { TRACKS, TRACK_LESSONS, findTrack, type Track } from '../data/tracks'
 import { allTrackStats, pickForTracks, trackHistory, trackStats, weakestTracks } from '../lib/training'
 import PuzzleCore, { savePuzzleAttempt, type PuzzleResult } from '../components/PuzzleCore'
 import { Button, Card, ProgressBar, SectionTitle, Segmented } from '../components/ui'
@@ -274,6 +274,19 @@ export function TrackPage({ data }: { data: AppData }) {
         )}
         <p className="text-xs text-slate-400">{t('tr.ratingNote')}</p>
       </Card>
+
+      {TRACK_LESSONS[track.id] && (
+        <Link to={`/train/lesson/${track.id}`}>
+          <Card className="flex items-center gap-3 p-3">
+            <span className="text-2xl">📺</span>
+            <div className="flex-1">
+              <div className="font-semibold">{t('ex.lesson')}</div>
+              <div className="text-xs text-slate-500">{t('ex.lessonSub')}</div>
+            </div>
+            <span className="text-slate-400">›</span>
+          </Card>
+        </Link>
+      )}
 
       <Card className="flex flex-col gap-2">
         <div className="font-bold">▶ {t('tr.trainThis')}</div>
