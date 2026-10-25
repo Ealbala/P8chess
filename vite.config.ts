@@ -33,6 +33,8 @@ export default defineConfig({
         // Cache the app shell and the puzzle set so training works offline
         globPatterns: ['**/*.{js,css,html,png,svg,json}'],
         globIgnores: ['engine/**'],
+        // Serverless functions (coach, calendar reminders) must reach the network.
+        navigateFallbackDenylist: [/^\/api\//],
         // Stockfish (~7 MB) is cached the first time it is used, not at install.
         runtimeCaching: [
           {

@@ -13,6 +13,8 @@ import Train from './pages/Train'
 import Games from './pages/Games'
 import GameReview from './pages/GameReview'
 import BoardPage from './pages/BoardPage'
+import Coach from './pages/Coach'
+import Analytics from './pages/Analytics'
 import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
@@ -61,6 +63,8 @@ export default function App() {
           <Route path="/games" element={<Games data={app} />} />
           <Route path="/games/:id" element={<GameReview data={app} />} />
           <Route path="/board" element={<BoardPage />} />
+          <Route path="/coach" element={<Coach data={app} />} />
+          <Route path="/analytics" element={<Analytics data={app} />} />
           <Route path="/settings" element={<SettingsPage data={app} />} />
         </Routes>
       </div>
@@ -72,8 +76,8 @@ export default function App() {
 const TABS: { to: string; icon: string; label: TKey }[] = [
   { to: '/', icon: '🏠', label: 'nav.home' },
   { to: '/train', icon: '🎯', label: 'nav.train' },
+  { to: '/coach', icon: '🤖', label: 'nav.coach' },
   { to: '/games', icon: '♟️', label: 'nav.games' },
-  { to: '/board', icon: '🧩', label: 'nav.board' },
   { to: '/settings', icon: '⚙️', label: 'nav.settings' },
 ]
 

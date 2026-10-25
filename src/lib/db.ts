@@ -23,6 +23,16 @@ export interface Settings {
   createdAt: string
   /** Opening ids in your repertoire (see src/data/openings.ts). Missing = starter openings. */
   repertoire?: string[]
+  /** Password for the AI coach endpoint (COACH_PASSWORD on Vercel), if one is set. */
+  coachPassword?: string
+  /** Daily reminder time, "HH:MM". */
+  reminderTime?: string
+}
+
+export interface CoachReport {
+  id: string // week start, YYYY-MM-DD
+  text: string
+  createdAt: string
 }
 
 /** Spaced-repetition state of one opening line. */
@@ -110,6 +120,8 @@ export interface MistakePosition {
   best: string // SAN Stockfish prefers
   bestUci: string
   pv: string[] // best line in SAN (a few moves)
+  /** The opponent's best reply to the move you played, with the line that follows (SAN). */
+  reply?: string[]
   evalBest: number // centipawns, your point of view, after the best move
   evalPlayed: number // after your move
   drop: number // winning chances lost (0-100)
@@ -144,10 +156,13 @@ export interface DrillSession {
   id?: number
   date: string
   day: string
-  kind: 'coords-find' | 'coords-color'
+  kind: 'coords-find' | 'coords-color' | 'moves' | 'memory' | 'calc' | 'blind-game'
   correct: number
   total: number
   seconds: number
+  /** Blindfold games only: how many times you looked at the board, and moves played. */
+  peeks?: number
+  moves?: number
 }
 
 export interface Meta {
@@ -156,6 +171,7 @@ export interface Meta {
 }
 
 export const db = new Dexie('my-chess-coach') as Dexie & {
+  reports: EntityTable<CoachReport, 'id'>
   positions: EntityTable<MistakePosition, 'id'>
   positionAttempts: EntityTable<PositionAttempt, 'id'>
   daysDone: EntityTable<{ day: string }, 'day'>
@@ -192,6 +208,10 @@ db.version(4).stores({
   positionAttempts: '++id, posId, day',
   daysDone: 'day',
 })
+// v5: weekly reports from the AI coach.
+db.version(5).stores({
+  reports: 'id',
+})
 
 export const defaultSettings = (): Settings => ({
   id: 'main',
@@ -222,6 +242,7 @@ export async function exportData(): Promise<string> {
     positions: await db.positions.toArray(),
     positionAttempts: await db.positionAttempts.toArray(),
     daysDone: await db.daysDone.toArray(),
+    reports: await db.reports.toArray(),
   }
   return JSON.stringify(data)
 }
@@ -231,7 +252,7 @@ export async function importData(json: string) {
   if (data.app !== 'my-chess-coach') throw new Error('Not a My Chess Coach backup file')
   const tables = [
     db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta,
-    db.lineProgress, db.lineAttempts, db.positions, db.positionAttempts, db.daysDone,
+    db.lineProgress, db.lineAttempts, db.positions, db.positionAttempts, db.daysDone, db.reports,
   ]
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))
@@ -240,6 +261,7 @@ export async function importData(json: string) {
     await db.positions.bulkAdd(data.positions ?? [])
     await db.positionAttempts.bulkAdd(data.positionAttempts ?? [])
     await db.daysDone.bulkAdd(data.daysDone ?? [])
+    await db.reports.bulkAdd(data.reports ?? [])
     await db.settings.bulkAdd(data.settings ?? [])
     await db.ratings.bulkAdd(data.ratings ?? [])
     await db.games.bulkAdd(data.games ?? [])

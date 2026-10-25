@@ -128,6 +128,7 @@ export function findMistakes(game: Game, sans: string[], evals: PositionEval[]):
       best,
       bestUci: before.best,
       pv: pvToSan(before.fen, before.pv ?? [before.best]),
+      reply: after.pv ? pvToSan(after.fen, after.pv, 4) : undefined,
       evalBest,
       evalPlayed,
       drop: Math.round(drop),

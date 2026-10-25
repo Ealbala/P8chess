@@ -1,6 +1,8 @@
 import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
 import { OpeningDetail, OpeningsHome, LineRoute } from './Openings'
 import { MistakeTrainer, MistakesHome } from './Mistakes'
+import { BlindGame, BlindfoldHome, CalcDrill, MemoryDrill, MovesDrill } from './Blindfold'
+import { EndgameTrainer, EndgamesHome } from './Endgames'
 import { areaStats, endgameScore, priority, weakestArea } from '../lib/areas'
 import { errorRates } from '../lib/analysis'
 import type { TKey } from '../lib/i18n'
@@ -25,7 +27,14 @@ export default function Train({ data }: { data: AppData }) {
       <Route path="line/:lineId" element={<LineRoute data={data} />} />
       <Route path="mistakes" element={<MistakesHome data={data} />} />
       <Route path="mistakes/:id" element={<MistakeTrainer data={data} />} />
-      <Route path="blindfold" element={<CoordsDrill data={data} />} />
+      <Route path="blindfold" element={<BlindfoldHome data={data} />} />
+      <Route path="blindfold/1" element={<CoordsDrill data={data} />} />
+      <Route path="blindfold/2" element={<MovesDrill />} />
+      <Route path="blindfold/3" element={<MemoryDrill />} />
+      <Route path="blindfold/4" element={<CalcDrill />} />
+      <Route path="blindfold/5" element={<BlindGame />} />
+      <Route path="endgames" element={<EndgamesHome data={data} />} />
+      <Route path="endgames/:id" element={<EndgameTrainer />} />
     </Routes>
   )
 }
@@ -94,6 +103,14 @@ function TrainHome({ data }: { data: AppData }) {
               {t(`act.${a}`)}
             </Link>
           ))}
+          <Link to="endgames" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800">
+            <span className="text-2xl">👑</span>
+            {t('eg.title')}
+          </Link>
+          <Link to="/board" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800">
+            <span className="text-2xl">🧩</span>
+            {t('board.title')}
+          </Link>
         </div>
       </Card>
     </div>

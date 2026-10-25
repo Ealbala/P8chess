@@ -13,19 +13,17 @@ const ROADMAP = {
     ['✅', 'Phase 1 — Dashboard, goals, weekly games (manual), daily plan, puzzles, blindfold coordinates'],
     ['✅', 'Phase 2 — Chess.com import, review-before-playing, game review, time & opening stats'],
     ['✅', 'Phase 3 — Stockfish analysis on your device, mistake detection, My Mistake Library, daily and weekly challenges'],
-    ['✅', 'Phase 4 (part) — Opening repertoire trainer with spaced repetition, middlegame puzzles, weakest-area-first plan'],
-    ['⏳', 'Phase 4 (rest) — Blindfold levels 2–5, endgame theory positions'],
-    ['⏳', 'Phase 5 — AI coach grounded on engine analysis, weekly reports'],
-    ['⏳', 'Phase 6 — Notifications, advanced analytics, voice'],
+    ['✅', 'Phase 4 — Openings with spaced repetition, middlegame, weakest-first plan, blindfold levels 1–5, endgame theory'],
+    ['✅', 'Phase 5 — AI coach grounded on your data and Stockfish lines, weekly report (needs an API key)'],
+    ['✅', 'Phase 6 — Analytics, calendar reminders, voice in blindfold training'],
   ],
   es: [
     ['✅', 'Fase 1 — Dashboard, objetivos, partidas semanales (manual), plan diario, ejercicios, coordenadas a ciegas'],
     ['✅', 'Fase 2 — Importación de Chess.com, revisar antes de jugar, revisión de partidas, estadísticas de tiempo y aperturas'],
     ['✅', 'Fase 3 — Análisis con Stockfish en tu dispositivo, detección de errores, biblioteca de errores, retos diarios y semanales'],
-    ['✅', 'Fase 4 (parte) — Entrenador de repertorio con repetición espaciada, medio juego, plan priorizando lo más flojo'],
-    ['⏳', 'Fase 4 (resto) — A ciegas niveles 2–5, posiciones teóricas de finales'],
-    ['⏳', 'Fase 5 — Coach de IA basado en el análisis del motor, informes semanales'],
-    ['⏳', 'Fase 6 — Notificaciones, estadísticas avanzadas, voz'],
+    ['✅', 'Fase 4 — Aperturas con repetición espaciada, medio juego, plan por área floja, a ciegas niveles 1–5, finales teóricos'],
+    ['✅', 'Fase 5 — Coach de IA basado en tus datos y en las líneas de Stockfish, informe semanal (requiere clave de API)'],
+    ['✅', 'Fase 6 — Estadísticas avanzadas, recordatorios en el calendario, voz en el entrenamiento a ciegas'],
   ],
 }
 
@@ -181,6 +179,40 @@ export default function SettingsPage({ data }: { data: AppData }) {
           </Button>
         </div>
         <p className="text-xs text-slate-400">{t('set.chesscomNote')}</p>
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <SectionTitle>⏰ {t('set.reminders')}</SectionTitle>
+        <p className="text-xs text-slate-500">{t('set.remindersNote')}</p>
+        <div className="flex gap-2">
+          <input
+            className={inputClass}
+            type="time"
+            value={settings.reminderTime ?? '19:30'}
+            onChange={(e) => update({ reminderTime: e.target.value })}
+          />
+          <a
+            className="shrink-0 rounded-xl bg-green-600 px-4 py-2.5 font-semibold text-white"
+            href={`/api/reminders?time=${encodeURIComponent(settings.reminderTime ?? '19:30')}&lang=${settings.lang}&app=${encodeURIComponent(location.origin)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            📅 {t('set.addCalendar')}
+          </a>
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <SectionTitle>🤖 {t('coach.title')}</SectionTitle>
+        <p className="text-xs text-slate-500">{t('set.coachNote')}</p>
+        <input
+          className={inputClass}
+          type="password"
+          autoComplete="off"
+          placeholder={t('set.coachPassword')}
+          value={settings.coachPassword ?? ''}
+          onChange={(e) => update({ coachPassword: e.target.value })}
+        />
       </Card>
 
       <Card className="flex flex-col gap-2">

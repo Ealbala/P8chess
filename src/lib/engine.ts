@@ -14,7 +14,10 @@ export interface EngineResult {
 
 type Pending = { fen: string; depth: number; resolve: (r: EngineResult) => void; reject: (e: unknown) => void }
 
-class Engine {
+export class Engine {
+  /** UCI commands sent once after start-up, e.g. "setoption name Skill Level value 5". */
+  constructor(private setup: string[] = []) {}
+
   private worker: Worker | null = null
   private ready: Promise<void> | null = null
   private queue: Pending[] = []
@@ -33,7 +36,10 @@ class Engine {
       this.worker.onerror = (e) => reject(e)
       this.worker.onmessage = (e) => {
         const line = String(e.data)
-        if (line === 'uciok') this.worker!.postMessage('isready')
+        if (line === 'uciok') {
+          this.setup.forEach((cmd) => this.worker!.postMessage(cmd))
+          this.worker!.postMessage('isready')
+        }
         else if (line === 'readyok' && !this.busy) resolve()
         else this.onLine(line)
       }
@@ -77,6 +83,12 @@ class Engine {
     this.worker.postMessage(`go depth ${this.current.depth} movetime 4000`)
   }
 
+  terminate() {
+    this.worker?.terminate()
+    this.worker = null
+    this.ready = null
+  }
+
   async analyse(fen: string, depth = 12): Promise<EngineResult> {
     await this.start()
     return new Promise((resolve, reject) => {
@@ -87,6 +99,14 @@ class Engine {
 }
 
 export const engine = new Engine()
+
+/**
+ * A separate, weaker engine to play against. Stockfish "Skill Level" 0–20; low levels
+ * make deliberate mistakes. Depth is kept low so it answers quickly.
+ */
+export function createSparringEngine(skill: number) {
+  return new Engine([`setoption name Skill Level value ${Math.max(0, Math.min(20, skill))}`])
+}
 
 /** Lichess win-probability model: centipawns → winning chances 0..100 for the side to move. */
 export function winPercent(cp: number): number {
