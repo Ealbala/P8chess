@@ -14,9 +14,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png', 'icons/icon.svg'],
       manifest: {
-        name: 'My Chess Coach',
-        short_name: 'Chess Coach',
-        description: 'Personal chess training: goals, daily challenges and progress tracking.',
+        name: 'Pocho Chess',
+        short_name: 'Pocho Chess',
+        description: 'Camino a GM Pocho — personal chess training, goals and progress.',
         theme_color: '#16a34a',
         background_color: '#0b1120',
         display: 'standalone',

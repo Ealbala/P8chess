@@ -1,8 +1,9 @@
-# ♞ My Chess Coach
+# ♞ Pocho Chess — *Camino a GM Pocho*
 
 Tu entrenador personal de ajedrez: una app web instalable (PWA) que funciona en iPhone, tablet y computadora.
+Publicada en https://p8chess.vercel.app
 
-**Estado actual: Fase 1 (MVP).** Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
+**Estado actual: Fase 2 (integración con Chess.com).** Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
 
 ## Qué hace la Fase 1
 
@@ -14,10 +15,13 @@ Tu entrenador personal de ajedrez: una app web instalable (PWA) que funciona en 
 | Ejercicios tácticos, de cálculo y de finales (1.385 problemas reales de Lichess, licencia CC0, funcionan sin conexión) | ✅ |
 | Dificultad básica: elige problemas cerca de tu "rating de práctica" y repite los que fallaste al día siguiente | ✅ |
 | A ciegas, Nivel 1: encontrar casillas y color de casillas (rondas de 60 s) | ✅ |
-| Partidas: registro **manual**, objetivo semanal por modalidad, G/P/T, revisión con "lección aprendida" | ✅ |
+| Partidas: registro manual (presencial / otros sitios), objetivo semanal por modalidad, G/P/T | ✅ |
 | Tablero interactivo libre: mover (arrastrar o tocar), avanzar/retroceder, girar, cargar FEN/PGN | ✅ |
 | Modo claro/oscuro, inglés/español, exportar/importar copia de seguridad | ✅ |
-| Importar partidas de Chess.com | ⏳ Fase 2 |
+| **Fase 2:** importar partidas de Chess.com (PGN, resultado, color, ritmo, rating, apertura, reloj), sin duplicados, sincronización automática al abrir | ✅ |
+| **Fase 2:** "Revisá antes de jugar otra": cada partida de tu ritmo principal queda pendiente hasta que la revisás | ✅ |
+| **Fase 2:** revisión de partida: reproducir jugadas con reloj, marcar el momento clave, etiquetar el tipo de error (autoevaluación) y escribir la lección | ✅ |
+| **Fase 2:** estadísticas por color, aperturas y manejo del tiempo; aviso de "tilt" tras 2 derrotas seguidas | ✅ |
 | Análisis con Stockfish, My Mistake Library | ⏳ Fase 3 |
 | A ciegas niveles 2–5, repetición espaciada completa, aperturas | ⏳ Fase 4 |
 | Coach con IA | ⏳ Fase 5 |
@@ -30,7 +34,16 @@ Tu entrenador personal de ajedrez: una app web instalable (PWA) que funciona en 
 - **Minutos**: tiempo real que pasaste resolviendo ejercicios y rondas (máx. 10 min por ejercicio, por si dejás la app abierta).
 - **XP**: ejercicio correcto 10, fallado 2, ronda a ciegas 5 + 1 por acierto, partida revisada 15.
 - **Rating de práctica**: estimación interna tipo Elo contra el rating de cada problema de Lichess. **No es un rating oficial.**
-- **Fortalezas/debilidades**: % de acierto por tema táctico en los ejercicios de la app (mín. 5 intentos). No analiza todavía tus partidas reales.
+- **Fortalezas/debilidades**: % de acierto por tema táctico en los ejercicios de la app (mín. 5 intentos), más los tipos de error que **vos** marcaste al revisar partidas. El análisis con motor llega en la Fase 3.
+
+### Chess.com: qué se importa y qué no
+
+- Se usa la [API pública](https://www.chess.com/news/view/published-data-api): solo datos públicos, sin contraseña.
+- Primera sincronización: últimos 6 meses. Después, solo los meses nuevos. Las partidas se identifican por su `uuid`, así que nunca se duplican.
+- Se importan rápidas, blitz y bullet (no Daily ni variantes).
+- **No incluye análisis de motor.** La "precisión" solo aparece si revisaste esa partida en Chess.com.
+- Los datos de tiempo salen de los comentarios `[%clk]` del PGN.
+- Partidas para revisar: las de tu ritmo principal jugadas desde que empezaste a usar la app (las anteriores quedan como historial).
 
 ## Stack (y por qué)
 

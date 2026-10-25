@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { useData } from './lib/data'
+import { autoSync } from './lib/sync'
 import { LangContext, useT, type TKey } from './lib/i18n'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Train from './pages/Train'
 import Games from './pages/Games'
+import GameReview from './pages/GameReview'
 import BoardPage from './pages/BoardPage'
 import SettingsPage from './pages/SettingsPage'
 
@@ -23,6 +25,11 @@ export default function App() {
     return () => mq.removeEventListener('change', apply)
   }, [theme])
 
+  const username = data?.settings?.chessComUsername
+  useEffect(() => {
+    if (username) autoSync(username)
+  }, [username])
+
   if (!data) return null // database still loading (a few ms)
   if (!data.settings) return <Onboarding />
   const app = { ...data, settings: data.settings }
@@ -34,6 +41,7 @@ export default function App() {
           <Route path="/" element={<Dashboard data={app} />} />
           <Route path="/train/*" element={<Train data={app} />} />
           <Route path="/games" element={<Games data={app} />} />
+          <Route path="/games/:id" element={<GameReview data={app} />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/settings" element={<SettingsPage data={app} />} />
         </Routes>

@@ -1,5 +1,6 @@
 // Free analysis board: play moves for both sides, step back/forward, load a FEN or PGN.
 import { useMemo, useState } from 'react'
+import { useLocation } from 'react-router'
 import { Chess, type Square } from 'chess.js'
 import Board from '../components/Board'
 import { Button, Card, inputClass } from '../components/ui'
@@ -9,7 +10,8 @@ const START = new Chess().fen()
 
 export default function BoardPage() {
   const t = useT()
-  const [startFen, setStartFen] = useState(START)
+  const incoming = (useLocation().state as { fen?: string } | null)?.fen
+  const [startFen, setStartFen] = useState(incoming ?? START)
   const [moves, setMoves] = useState<string[]>([]) // SAN
   const [ply, setPly] = useState(0)
   const [orientation, setOrientation] = useState<'white' | 'black'>('white')

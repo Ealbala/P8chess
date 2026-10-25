@@ -1,6 +1,7 @@
 // Today's Training: a fixed plan per day, built from the chosen duration.
 // Progress is never ticked by hand — it is computed from what you actually did today.
-import type { Activity, DrillSession, Game, PuzzleAttempt } from './db'
+import type { Activity, DrillSession, Game, PuzzleAttempt, Settings } from './db'
+import { needsReview } from './stats'
 import { dayKey } from './dates'
 
 export interface PlanItem {
@@ -44,10 +45,10 @@ export function planProgress(
 }
 
 /** Today's plan with progress, from the full app data. */
-export function todaysPlan(data: { settings: { dailyMinutes: number }; attempts: PuzzleAttempt[]; drills: DrillSession[]; games: Game[] }) {
+export function todaysPlan(data: { settings: Settings; attempts: PuzzleAttempt[]; drills: DrillSession[]; games: Game[] }) {
   const today = dayKey()
   const reviewedToday = data.games.some((g) => g.reviewedAt && dayKey(new Date(g.reviewedAt)) === today)
-  const unreviewed = data.games.some((g) => !g.reviewed)
+  const unreviewed = data.games.some((g) => needsReview(g, data.settings))
   return buildPlan(data.settings.dailyMinutes, unreviewed || reviewedToday).map((item) => {
     const done = planProgress(item, data.attempts, data.drills, data.games, today)
     return { ...item, done, complete: done >= item.target }

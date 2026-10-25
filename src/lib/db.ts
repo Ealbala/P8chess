@@ -28,7 +28,7 @@ export interface RatingEntry {
   date: string // ISO datetime
   tc: TimeControl
   rating: number
-  source: 'start' | 'manual' | 'game'
+  source: 'start' | 'manual' | 'game' | 'chesscom'
   gameId?: number
 }
 
@@ -41,10 +41,28 @@ export interface Game {
   ratingAfter?: number
   opponentRating?: number
   opening?: string
-  source: 'manual'
+  source: 'manual' | 'chesscom'
   reviewed: boolean
   reviewedAt?: string
   lesson?: string
+  /** Ply index (1 = first move) you marked as the key moment during review. */
+  keyPly?: number
+  /** Self-reported mistake categories chosen during review. */
+  mistakeTags?: string[]
+  // --- Chess.com imports only ---
+  uuid?: string
+  url?: string
+  pgn?: string
+  /** e.g. "600" or "180+2" */
+  timeControl?: string
+  opponent?: string
+  /** Chess.com result code for you: win, checkmated, timeout, resigned, agreed, repetition… */
+  endReason?: string
+  /** Chess.com accuracy, only present when the game was reviewed on Chess.com. */
+  accuracy?: number
+  /** Your remaining clock (seconds) after each of your moves. */
+  myClocks?: number[]
+  plies?: number
 }
 
 export interface PuzzleAttempt {
@@ -91,6 +109,10 @@ db.version(1).stores({
   drills: '++id, day',
   meta: 'key',
 })
+// v2: Chess.com import — unique game uuid prevents duplicates.
+db.version(2).stores({
+  games: '++id, date, tc, &uuid',
+})
 
 export const defaultSettings = (): Settings => ({
   id: 'main',
@@ -101,7 +123,7 @@ export const defaultSettings = (): Settings => ({
   milestones: { rapid: [1600, 1700, 1800], blitz: [1500, 1600], bullet: [1400] },
   weeklyGames: { rapid: 5, blitz: 0, bullet: 0 },
   dailyMinutes: 20,
-  chessComUsername: '',
+  chessComUsername: 'Pochox23',
   createdAt: new Date().toISOString(),
 })
 
