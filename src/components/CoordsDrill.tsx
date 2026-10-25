@@ -84,7 +84,7 @@ export default function CoordsDrill({ data }: { data: AppData }) {
   return (
     <div className="flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <Link to="/train" className="text-sm font-semibold text-green-600">
+        <Link to="/train/blindfold" className="text-sm font-semibold text-green-600">
           ← {t('common.back')}
         </Link>
         {item && <span className="text-xs text-slate-500">{t('train.progress', { done: Math.min(item.done, item.target), target: item.target })}</span>}

@@ -12,6 +12,7 @@ import { ANALYSIS_DEPTH } from '../lib/analysis'
 import { duePositions, nextSrs } from '../lib/mistakes'
 import { useLang, useT } from '../lib/i18n'
 import { useAnalysisState } from '../lib/analysisRunner'
+import { describePosition } from '../lib/coach'
 
 const GREEN = 'rgba(22,163,74,0.85)'
 const RED = 'rgba(220,38,38,0.8)'
@@ -309,6 +310,16 @@ export function MistakeTrainer({ data }: { data: AppData }) {
               {t('common.next')} →
             </Button>
           )}
+          <Button
+            variant="secondary"
+            onClick={() =>
+              navigate('/coach', {
+                state: { question: `${t('coach.explainPrompt')}\n${JSON.stringify(describePosition(pos, game?.opponent))}` },
+              })
+            }
+          >
+            🤖 {t('coach.explain')}
+          </Button>
           {game && (
             <Link to={`/games/${game.id}`} className="text-center text-xs text-green-600 underline">
               {t('mk.openGame')}

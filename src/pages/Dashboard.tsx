@@ -240,7 +240,9 @@ export default function Dashboard({ data }: { data: AppData }) {
       </Card>
 
       <Card>
-        <SectionTitle>{t('dash.history')}</SectionTitle>
+        <SectionTitle right={<Link to="/analytics" className="text-sm font-semibold text-green-600">📊 {t('an2.title')} →</Link>}>
+          {t('dash.history')}
+        </SectionTitle>
         {chartData.length < 2 ? (
           <p className="text-sm text-slate-500">{t('dash.noHistory')}</p>
         ) : (

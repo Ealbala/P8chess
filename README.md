@@ -3,7 +3,7 @@
 Tu entrenador personal de ajedrez: una app web instalable (PWA) que funciona en iPhone, tablet y computadora.
 Publicada en https://p8chess.vercel.app
 
-**Estado actual: Fases 1–3 completas + parte de la Fase 4.** Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
+**Estado actual: las 6 fases implementadas.** El coach de IA necesita una clave de API (ver abajo). Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
 
 ## Qué hace la Fase 1
 
@@ -139,9 +139,21 @@ public/data/puzzles.json   problemas de Lichess (generados con scripts/build_puz
 - **Reto de hoy**: completar el plan diario (racha de días con el reto completo, +25 XP). **Reto semanal**: jugar las partidas semanales de tu ritmo principal (racha de semanas, +50 XP).
 - Al llegar a tu objetivo, la app propone el siguiente (+100).
 
+## Fases 4–6
+
+- **A ciegas, 5 niveles** (Entrenar → A ciegas): coordenadas; movimientos (saltos de caballo, diagonales); memoria (posición unos segundos y preguntas por casilla); cálculo mental (secuencias de tu repertorio, con lectura en voz alta); partida a ciegas contra Stockfish con nivel ajustable, jugadas por texto o voz ("caballo f3") y contador de veces que miraste el tablero.
+- **Finales teóricos**: mate con dama y con torre, rey y peón (ganar y defender), Lucena y Philidor, contra la defensa perfecta de las tablas de finales de Lichess, que también juzgan cada jugada.
+- **Coach de IA** (pestaña Coach): Claude Opus 5.5 vía una función de Vercel (`api/coach.ts`). La app le manda un resumen de tus datos (partidas, errores de Stockfish con sus líneas, estadísticas) y la instrucción de no inventar jugadas ni variantes. Preguntas rápidas, "Explicamelo" desde cada error e informe semanal.
+  - Configuración: `ANTHROPIC_API_KEY` (y opcionalmente `COACH_PASSWORD`) en Vercel → Settings → Environment Variables, y después Redeploy. Costo aproximado: 2 a 5 centavos de dólar por pregunta.
+- **Estadísticas** (Inicio → Estadísticas): esta semana vs la anterior, rating de los 3 ritmos, entrenamiento vs resultados por semana, errores por partida analizada, puntaje por ritmo y temas tácticos.
+- **Recordatorios**: Ajustes → Recordatorios genera eventos de calendario (`api/reminders.ts`, archivo .ics) con alerta: reto diario, partidas semanales (jueves) y cierre de semana (domingo). Las notificaciones push web en iPhone necesitarían un servidor y una base de datos; el calendario es gratis y confiable.
+- **Para probar el coach localmente** hace falta `vercel dev`; con `npm run dev` las funciones `/api` no existen.
+
 ## Créditos
 
 - Ejercicios: base de datos de Lichess (CC0).
+- Finales: tablas de finales de Lichess (tablebase.lichess.ovh).
+- Coach: Claude (Anthropic).
 - Motor: Stockfish (GPL v3), build WebAssembly de nmrugg/stockfish.js.
 - Caballo del logo y piezas del tablero: set "cburnett" de Colin M.L. Burnett (licencias BSD/GPL/GFDL).
 
