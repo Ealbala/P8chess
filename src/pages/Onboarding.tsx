@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { db, defaultSettings, type TimeControl } from '../lib/db'
 import { translate, type TKey } from '../lib/i18n'
+import { fetchCurrentRatings } from '../lib/chesscom'
 import { Button, Card, Field, Segmented, inputClass } from '../components/ui'
 
 const TCS: TimeControl[] = ['rapid', 'blitz', 'bullet']
@@ -10,6 +11,18 @@ export default function Onboarding() {
   const [s, setS] = useState(defaultSettings())
   const t = (k: TKey) => translate(s.lang, k)
   const goal = s.milestones[s.focus].at(-1) ?? s.startRatings[s.focus] + 300
+  const [fetchState, setFetchState] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+
+  async function loadRatings() {
+    setFetchState('loading')
+    try {
+      const r = await fetchCurrentRatings(s.chessComUsername.trim())
+      setS((prev) => ({ ...prev, startRatings: { ...prev.startRatings, ...r } }))
+      setFetchState('ok')
+    } catch {
+      setFetchState('error')
+    }
+  }
 
   async function finish() {
     const now = new Date().toISOString()
@@ -44,6 +57,21 @@ export default function Onboarding() {
       </div>
 
       <Card className="flex flex-col gap-3">
+        <Field label={t('onb.username')}>
+          <div className="flex gap-2">
+            <input
+              className={inputClass}
+              autoCapitalize="none"
+              value={s.chessComUsername}
+              onChange={(e) => setS({ ...s, chessComUsername: e.target.value })}
+            />
+            <Button variant="secondary" className="shrink-0 text-sm" onClick={loadRatings} disabled={!s.chessComUsername.trim() || fetchState === 'loading'}>
+              {fetchState === 'loading' ? '⏳' : t('onb.fetch')}
+            </Button>
+          </div>
+        </Field>
+        {fetchState === 'ok' && <p className="text-xs text-green-600">{t('onb.fetched')}</p>}
+        {fetchState === 'error' && <p className="text-xs text-red-500">{t('sync.notFound')}</p>}
         <h2 className="font-semibold">{t('onb.ratings')}</h2>
         <div className="grid grid-cols-3 gap-2">
           {TCS.map((tc) => (

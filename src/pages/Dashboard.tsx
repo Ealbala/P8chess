@@ -7,8 +7,8 @@ import { dayKey, monthStart, weekStart } from '../lib/dates'
 import { themeName, useLang, useT, type TKey } from '../lib/i18n'
 import { todaysPlan } from '../lib/plan'
 import {
-  bestStreak, currentRating, gamesInRange, levelFromXp, nextMilestone, practiceRating, ratingChange,
-  record, streak, themeStats, totalXp, trainedDays, trainingMinutes, weeklyPace,
+  bestStreak, currentRating, dailySeries, gamesInRange, levelFromXp, lossStreakToday, mistakeTagCounts, needsReview,
+  nextMilestone, practiceRating, ratingChange, record, streak, themeStats, totalXp, trainedDays, trainingMinutes, weeklyPace,
 } from '../lib/stats'
 import { Card, ProgressBar, SectionTitle, Segmented, Stat } from '../components/ui'
 
@@ -32,17 +32,16 @@ export default function Dashboard({ data }: { data: AppData }) {
   const focusWeekGames = weekGames.filter((g) => g.tc === settings.focus)
   const target = settings.weeklyGames[settings.focus]
   const pace = weeklyPace(target, focusWeekGames.length)
-  const unreviewed = games.filter((g) => !g.reviewed).length
+  const toReview = games.filter((g) => needsReview(g, settings))
+  const lossStreak = lossStreakToday(games)
+  const tagCounts = mistakeTagCounts(games)
 
   const xp = totalXp(attempts, drills, games)
   const lvl = levelFromXp(xp)
   const plan = todaysPlan(data)
   const stats = themeStats(attempts)
 
-  const chartData = ratings
-    .filter((r) => r.tc === tc)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((r) => ({ date: r.date.slice(5, 10), rating: r.rating }))
+  const chartData = dailySeries(ratings, tc).map((p) => ({ date: p.day.slice(5), rating: p.rating }))
 
   const achievements: { key: TKey; done: boolean; icon: string }[] = [
     { key: 'ach.firstPuzzle', done: attempts.some((a) => a.correct), icon: '🧩' },
@@ -63,7 +62,10 @@ export default function Dashboard({ data }: { data: AppData }) {
   return (
     <div className="flex flex-col gap-4 p-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('dash.title')}</h1>
+        <div>
+          <h1 className="text-2xl font-extrabold">♞ {t('app.name')}</h1>
+          <p className="text-sm font-semibold text-green-600 dark:text-green-400">{t('app.slogan')}</p>
+        </div>
         <div className="text-right">
           <div className="text-sm font-bold text-green-600 dark:text-green-400">
             {t('dash.level', { n: lvl.level })} · {xp} XP
@@ -79,15 +81,42 @@ export default function Dashboard({ data }: { data: AppData }) {
           {t('dash.behind', { played: focusWeekGames.length, target, left: pace.remaining, days: pace.daysLeft })}
         </Banner>
       )}
-      {unreviewed >= 2 && (
-        <Banner icon="🔍">
-          <Link to="/games" className="underline">
-            {t('dash.reviewFirst', { n: unreviewed })}
+      {lossStreak >= 2 && <Banner icon="🧊">{t('tilt.text', { n: lossStreak })}</Banner>}
+
+      {toReview.length > 0 ? (
+        <Card className="flex flex-col gap-2 ring-2 ring-amber-400">
+          <div className="font-bold">🔍 {t('gate.title')}</div>
+          <p className="text-sm">
+            {t('gate.text', {
+              tc: t(`tc.${toReview[0].tc}`),
+              result: t(`games.${toReview[0].result}`),
+              opp: toReview[0].opponent ?? '?',
+            })}
+          </p>
+          <Link to={`/games/${toReview[0].id}`} className="rounded-xl bg-green-600 py-2.5 text-center font-semibold text-white">
+            {t('gate.cta')}
           </Link>
-        </Banner>
+          {toReview.length > 1 && <p className="text-xs text-slate-500">{t('gate.more', { n: toReview.length - 1 })}</p>}
+        </Card>
+      ) : (
+        games.length > 0 && (
+          <Card className="flex flex-col gap-2">
+            <div className="text-sm font-semibold text-green-600">✓ {t('gate.ok')}</div>
+            <p className="text-xs text-slate-500">🧠 {t('gate.checklist')}</p>
+            <a
+              href="https://www.chess.com/play/online"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl bg-slate-100 py-2 text-center text-sm font-semibold dark:bg-slate-800"
+            >
+              ♟️ {t('gate.play')} ↗
+            </a>
+          </Card>
+        )
       )}
 
       <Card className="flex flex-col gap-3">
+        <SectionTitle>{t('dash.title')}</SectionTitle>
         <Segmented
           options={(['rapid', 'blitz', 'bullet'] as const).map((c) => ({ value: c, label: t(`tc.${c}`) }))}
           value={tc}
@@ -222,6 +251,18 @@ export default function Dashboard({ data }: { data: AppData }) {
           </div>
         )}
         <p className="mt-2 text-xs text-slate-400">{t('dash.swNote')}</p>
+        {tagCounts.length > 0 && (
+          <div className="mt-3 text-sm">
+            <div className="mb-1 font-semibold">{t('dash.mistakes')}</div>
+            {tagCounts.slice(0, 4).map((c) => (
+              <div key={c.tag} className="flex justify-between py-0.5">
+                <span>{t(`tag.${c.tag}` as TKey)}</span>
+                <span className="text-slate-500">×{c.count}</span>
+              </div>
+            ))}
+            <p className="text-xs text-slate-400">{t('dash.mistakesNote')}</p>
+          </div>
+        )}
         {attempts.length > 0 && (
           <p className="mt-2 text-sm">
             {t('dash.practice')}: <b>{practiceRating(attempts)}</b>{' '}

@@ -3,15 +3,32 @@
 import type { DrillSession, Game, PuzzleAttempt, RatingEntry, Settings, TimeControl } from './db'
 import { addDays, dayKey, parseDay, weekStart } from './dates'
 
+/**
+ * Rating entries for a time control, oldest first. The onboarding "start" value is
+ * ignored once real data (games, Chess.com, manual updates) exists.
+ */
+export function ratingList(ratings: RatingEntry[], tc: TimeControl): RatingEntry[] {
+  const all = ratings.filter((r) => r.tc === tc)
+  const real = all.filter((r) => r.source !== 'start')
+  return (real.length ? real : all).sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** One point per day (the last rating of that day), for charts. */
+export function dailySeries(ratings: RatingEntry[], tc: TimeControl): { day: string; rating: number }[] {
+  const byDay = new Map<string, number>()
+  for (const r of ratingList(ratings, tc)) byDay.set(dayKey(new Date(r.date)), r.rating)
+  return [...byDay].map(([day, rating]) => ({ day, rating }))
+}
+
 /** Latest recorded rating for a time control, or the starting rating. */
 export function currentRating(ratings: RatingEntry[], settings: Settings, tc: TimeControl): number {
-  const list = ratings.filter((r) => r.tc === tc).sort((a, b) => a.date.localeCompare(b.date))
+  const list = ratingList(ratings, tc)
   return list.length ? list[list.length - 1].rating : settings.startRatings[tc]
 }
 
 /** Rating change over the last `days` days (null if there is no data point that old). */
 export function ratingChange(ratings: RatingEntry[], tc: TimeControl, days: number, now = new Date()): number | null {
-  const list = ratings.filter((r) => r.tc === tc).sort((a, b) => a.date.localeCompare(b.date))
+  const list = ratingList(ratings, tc)
   if (list.length < 2) return null
   const cutoff = addDays(now, -days).toISOString()
   const before = list.filter((r) => r.date <= cutoff)
@@ -164,4 +181,91 @@ export function weeklyPace(target: number, played: number, now = new Date()) {
   const expected = Math.floor((target * (dayIndex + 1)) / 7)
   // daysLeft includes today
   return { expected, behind: played < expected, remaining: Math.max(0, target - played), daysLeft: 7 - dayIndex }
+}
+
+/**
+ * Games that should be reviewed before playing again: unreviewed games in your focus
+ * time control, played since you started using the app (older imports are history).
+ */
+export function needsReview(g: Game, settings: Settings): boolean {
+  return !g.reviewed && g.tc === settings.focus && g.date >= settings.createdAt
+}
+
+/** Losses in a row among today's games, most recent first. */
+export function lossStreakToday(games: Game[], now = new Date()): number {
+  const today = dayKey(now)
+  const list = games.filter((g) => dayKey(new Date(g.date)) === today).sort((a, b) => b.date.localeCompare(a.date))
+  let n = 0
+  for (const g of list) {
+    if (g.result !== 'loss') break
+    n++
+  }
+  return n
+}
+
+export interface TimeStats {
+  games: number
+  /** % of games where your clock dropped below 10% of the base time. */
+  lowTimePct: number
+  /** Games lost on time (Chess.com result "timeout"). */
+  lostOnTime: number
+  /** Average seconds you spent on your first 15 moves. */
+  openingSeconds: number
+}
+
+/** Clock-based stats from Chess.com PGN clock data. Ignores the increment for simplicity. */
+export function timeStats(games: Game[]): TimeStats | null {
+  const list = games.filter((g) => g.myClocks && g.myClocks.length > 0 && baseOf(g))
+  if (!list.length) return null
+  let low = 0
+  let opening = 0
+  for (const g of list) {
+    const base = baseOf(g)!
+    const clocks = g.myClocks!
+    if (Math.min(...clocks) < base * 0.1) low++
+    opening += Math.max(0, base - clocks[Math.min(14, clocks.length - 1)])
+  }
+  return {
+    games: list.length,
+    lowTimePct: low / list.length,
+    lostOnTime: list.filter((g) => g.endReason === 'timeout').length,
+    openingSeconds: Math.round(opening / list.length),
+  }
+}
+
+function baseOf(g: Game): number | null {
+  if (!g.timeControl || g.timeControl.includes('/')) return null
+  const n = Number(g.timeControl.split('+')[0])
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+export interface GroupStat {
+  key: string
+  games: number
+  win: number
+  draw: number
+  loss: number
+  /** Points per game ×100: win = 1, draw = 0.5. */
+  score: number
+}
+
+export function groupStats(games: Game[], keyOf: (g: Game) => string): GroupStat[] {
+  const map = new Map<string, GroupStat>()
+  for (const g of games) {
+    const k = keyOf(g)
+    const s = map.get(k) ?? { key: k, games: 0, win: 0, draw: 0, loss: 0, score: 0 }
+    s.games++
+    s[g.result]++
+    map.set(k, s)
+  }
+  return [...map.values()]
+    .map((s) => ({ ...s, score: Math.round(((s.win + s.draw / 2) / s.games) * 100) }))
+    .sort((a, b) => b.games - a.games)
+}
+
+/** How often you tagged each mistake type in your own game reviews. */
+export function mistakeTagCounts(games: Game[]): { tag: string; count: number }[] {
+  const map = new Map<string, number>()
+  games.forEach((g) => g.mistakeTags?.forEach((t) => map.set(t, (map.get(t) ?? 0) + 1)))
+  return [...map].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count)
 }

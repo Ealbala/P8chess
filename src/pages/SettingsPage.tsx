@@ -3,6 +3,7 @@ import type { AppData } from '../lib/data'
 import { db, exportData, importData, resetAll, type Settings, type TimeControl } from '../lib/db'
 import { useLang, useT } from '../lib/i18n'
 import { currentRating } from '../lib/stats'
+import { runSync } from '../lib/sync'
 import { Button, Card, Field, SectionTitle, Segmented, inputClass } from '../components/ui'
 
 const TCS: TimeControl[] = ['rapid', 'blitz', 'bullet']
@@ -10,7 +11,7 @@ const TCS: TimeControl[] = ['rapid', 'blitz', 'bullet']
 const ROADMAP = {
   en: [
     ['✅', 'Phase 1 — Dashboard, goals, weekly games (manual), daily plan, puzzles, blindfold coordinates'],
-    ['⏳', 'Phase 2 — Chess.com import: games, PGN, ratings, automatic weekly count'],
+    ['✅', 'Phase 2 — Chess.com import, review-before-playing, game review, time & opening stats'],
     ['⏳', 'Phase 3 — Stockfish analysis, mistake detection, Mistake Library'],
     ['⏳', 'Phase 4 — Blindfold levels 2–5, spaced repetition, adaptive difficulty, openings'],
     ['⏳', 'Phase 5 — AI coach grounded on engine analysis, weekly reports'],
@@ -18,7 +19,7 @@ const ROADMAP = {
   ],
   es: [
     ['✅', 'Fase 1 — Dashboard, objetivos, partidas semanales (manual), plan diario, ejercicios, coordenadas a ciegas'],
-    ['⏳', 'Fase 2 — Importación de Chess.com: partidas, PGN, ratings, conteo semanal automático'],
+    ['✅', 'Fase 2 — Importación de Chess.com, revisar antes de jugar, revisión de partidas, estadísticas de tiempo y aperturas'],
     ['⏳', 'Fase 3 — Análisis con Stockfish, detección de errores, My Mistake Library'],
     ['⏳', 'Fase 4 — A ciegas niveles 2–5, repetición espaciada, dificultad adaptativa, aperturas'],
     ['⏳', 'Fase 5 — Coach de IA basado en el análisis del motor, informes semanales'],
@@ -64,6 +65,14 @@ export default function SettingsPage({ data }: { data: AppData }) {
     await db.ratings.add({ date: new Date().toISOString(), tc, rating: Number(newRating), source: 'manual' })
     setNewRating('')
     notify(t('set.saved'))
+  }
+
+  async function saveUsername() {
+    const name = username.trim()
+    if (name.toLowerCase() !== settings.chessComUsername.toLowerCase()) await db.meta.delete('chesscom.lastSync')
+    await update({ chessComUsername: name })
+    notify(t('set.saved'))
+    if (name) runSync(name)
   }
 
   async function doExport() {
@@ -165,7 +174,7 @@ export default function SettingsPage({ data }: { data: AppData }) {
         <SectionTitle>{t('set.chesscom')}</SectionTitle>
         <div className="flex gap-2">
           <input className={inputClass} value={username} autoCapitalize="none" onChange={(e) => setUsername(e.target.value)} />
-          <Button variant="secondary" onClick={() => update({ chessComUsername: username.trim() }).then(() => notify(t('set.saved')))}>
+          <Button variant="secondary" onClick={saveUsername}>
             {t('common.save')}
           </Button>
         </div>
