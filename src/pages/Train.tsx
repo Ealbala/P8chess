@@ -1,10 +1,11 @@
-import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
+import { Link, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router'
 import { OpeningDetail, OpeningsHome, LineRoute } from './Openings'
 import { MistakeTrainer, MistakesHome } from './Mistakes'
 import { BlindGame, BlindfoldHome, CalcDrill, MemoryDrill, MovesDrill } from './Blindfold'
 import { EndgameTrainer, EndgamesHome } from './Endgames'
 import { StrategyHome, StrategyTrainer } from './Strategy'
 import History from './History'
+import { Rush, SessionRunner, TrackPage, TrainingHub } from './Training'
 import { areaStats, endgameScore, priority, weakestArea } from '../lib/areas'
 import { errorRates } from '../lib/analysis'
 import type { TKey } from '../lib/i18n'
@@ -20,6 +21,7 @@ import { ACT_ICON } from './Dashboard'
 
 
 export default function Train({ data }: { data: AppData }) {
+  const loc = useLocation()
   return (
     <Routes>
       <Route index element={<TrainHome data={data} />} />
@@ -39,6 +41,10 @@ export default function Train({ data }: { data: AppData }) {
       <Route path="strategy" element={<StrategyHome data={data} />} />
       <Route path="strategy/:id" element={<StrategyTrainer />} />
       <Route path="history" element={<History data={data} />} />
+      <Route path="practice" element={<TrainingHub data={data} />} />
+      <Route path="track/:id" element={<TrackPage data={data} />} />
+      <Route path="session" element={<SessionRunner key={loc.search} data={data} />} />
+      <Route path="rush" element={<Rush key={loc.search} data={data} />} />
       <Route path="puzzle/:id" element={<PuzzleById data={data} />} />
       <Route path="endgames/:id" element={<EndgameTrainer />} />
     </Routes>
@@ -62,6 +68,16 @@ function TrainHome({ data }: { data: AppData }) {
   return (
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-2xl font-bold">{t('train.title')}</h1>
+      <Link to="practice" className="block">
+        <Card className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white ring-0">
+          <span className="text-3xl">🏋️</span>
+          <div className="flex-1">
+            <div className="font-bold">{t('tr.title')}</div>
+            <div className="text-xs opacity-90">{t('tr.teaser')}</div>
+          </div>
+          <span className="text-xl">›</span>
+        </Card>
+      </Link>
       <Card>
         <SectionTitle right={<Link to="/settings" className="text-xs text-slate-400">{t('train.changeDuration')}</Link>}>
           {t('train.plan', { n: data.settings.dailyMinutes })}

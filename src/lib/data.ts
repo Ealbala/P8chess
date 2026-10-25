@@ -1,10 +1,10 @@
 // React hook that keeps the UI in sync with the local database.
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type DrillSession, type Game, type LineAttempt, type LineProgress, type MistakePosition, type PositionAttempt, type PuzzleAttempt, type RatingEntry, type Settings } from './db'
+import { db, type DrillSession, type Game, type LineAttempt, type LineProgress, type MistakePosition, type PositionAttempt, type RushResult, type TrainingGoal, type TrainingSession, type PuzzleAttempt, type RatingEntry, type Settings } from './db'
 
 export function useData() {
   return useLiveQuery(async () => {
-    const [settings, ratings, games, attempts, drills, lineProgress, lineAttempts, positions, positionAttempts, daysDone] = await Promise.all([
+    const [settings, ratings, games, attempts, drills, lineProgress, lineAttempts, positions, positionAttempts, daysDone, sessions, rushes, goals] = await Promise.all([
       db.settings.get('main'),
       db.ratings.toArray(),
       db.games.orderBy('date').reverse().toArray(),
@@ -15,10 +15,13 @@ export function useData() {
       db.positions.toArray(),
       db.positionAttempts.toArray(),
       db.daysDone.toArray(),
+      db.sessions.toArray(),
+      db.rushes.toArray(),
+      db.goals.toArray(),
     ])
     return {
       settings: settings ?? null, ratings, games, attempts, drills, lineProgress, lineAttempts,
-      positions, positionAttempts, daysDone: daysDone.map((d) => d.day),
+      positions, positionAttempts, daysDone: daysDone.map((d) => d.day), sessions, rushes, goals,
     }
   })
 }
@@ -36,4 +39,7 @@ export interface AppData {
   positionAttempts: PositionAttempt[]
   /** Days (YYYY-MM-DD) on which the daily challenge was completed. */
   daysDone: string[]
+  sessions: TrainingSession[]
+  rushes: RushResult[]
+  goals: TrainingGoal[]
 }

@@ -160,6 +160,14 @@ public/data/puzzles.json   problemas de Lichess (generados con scripts/build_puz
 - **Historial** (Entrenar → Historial): todo lo que hiciste, separado en *a la primera*, *con reintentos* y *sin resolver*. Tocás cualquier ejercicio para repetirlo.
 - **Planes de medio juego** (Entrenar → Planes de medio juego): lecciones sobre tus estructuras (Colle, Francesa, peón aislado, Carlsbad). Las jugadas que se piden están verificadas con Stockfish.
 
+## Entrenamiento (Entrenar → 🏋️ Entrenamiento)
+
+- **16 secciones** con ejercicios de Lichess por tema: apertura, medio juego, finales, cálculo, ataques dobles, clavadas y enfiladas, descubiertas, patrones de mate, sacrificios, ataque al rey, defensa, piezas colgadas, peones y coronación, finales de torres, de piezas menores y de dama. El set tiene 4.131 ejercicios, con al menos 112 por tema en todos los niveles.
+- **Rating por sección**: estimación tipo Elo que empieza en 1500 y se mueve con cada ejercicio resuelto a la primera, contra su rating de Lichess. Muestra el cambio de los últimos 7 días y un gráfico. No es un rating oficial.
+- **Sesión a medida**: elegís una sección (o "lo que peor hago": las secciones con rating más bajo) y la duración (10 a 90 min). Los ejercicios se adaptan a tu nivel durante la sesión. Al final ves un resumen con el cambio de rating y los ejercicios para repetir.
+- **Puzzle Rush**: 3 min, 5 min o supervivencia, sin reintentos y con 3 vidas. Cada acierto sube la dificultad. Guarda tus récords. No cuenta para los ratings.
+- **Objetivos**: "subir Peones +100". La barra avanza con tu rating de sección y se marca cumplido al llegar.
+
 ## Créditos
 
 - Ejercicios: base de datos de Lichess (CC0).

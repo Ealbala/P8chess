@@ -132,7 +132,7 @@ export function levelFromXp(xp: number) {
  */
 export function practiceRating(attempts: PuzzleAttempt[]): number {
   let r = 1500
-  const sorted = [...attempts].sort((a, b) => a.date.localeCompare(b.date))
+  const sorted = attempts.filter((a) => !a.rush).sort((a, b) => a.date.localeCompare(b.date))
   sorted.forEach((a, i) => {
     const k = i < 20 ? 40 : 20
     const expected = 1 / (1 + 10 ** ((a.rating - r) / 400))
@@ -157,7 +157,7 @@ export interface ThemeStat {
 /** Accuracy per tactical theme. Only themes with at least `minAttempts` attempts are returned. */
 export function themeStats(attempts: PuzzleAttempt[], minAttempts = 5): ThemeStat[] {
   const map = new Map<string, ThemeStat>()
-  for (const a of attempts) {
+  for (const a of attempts.filter((x) => !x.rush)) {
     for (const t of a.themes) {
       if (GENERIC_THEMES.has(t)) continue
       const s = map.get(t) ?? { theme: t, attempts: 0, correct: 0, accuracy: 0 }

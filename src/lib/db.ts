@@ -29,6 +29,39 @@ export interface Settings {
   reminderTime?: string
 }
 
+/** A custom training session (a section, or "what I do worst", for N minutes). */
+export interface TrainingSession {
+  id?: number
+  tracks: string[]
+  minutes: number
+  startedAt: string
+  endedAt?: string
+  puzzles: number
+  firstTry: number
+  solved: number
+  ratingStart: number
+  ratingEnd?: number
+}
+
+export interface RushResult {
+  id?: number
+  mode: '3min' | '5min' | 'survival'
+  track: string
+  score: number
+  mistakes: number
+  date: string
+}
+
+/** A training objective, e.g. "Pawns rating to 1700". */
+export interface TrainingGoal {
+  id?: number
+  track: string
+  startRating: number
+  target: number
+  createdAt: string
+  achievedAt?: string
+}
+
 export interface CoachReport {
   id: string // week start, YYYY-MM-DD
   text: string
@@ -156,6 +189,8 @@ export interface PuzzleAttempt {
   correct: boolean
   /** Finished without showing the solution (retries allowed). Missing on old records = correct. */
   solved?: boolean
+  /** Done in Puzzle Rush (speed): excluded from accuracy and ratings. */
+  rush?: boolean
   rating: number
   themes: string[]
   seconds: number
@@ -180,6 +215,9 @@ export interface Meta {
 }
 
 export const db = new Dexie('my-chess-coach') as Dexie & {
+  sessions: EntityTable<TrainingSession, 'id'>
+  rushes: EntityTable<RushResult, 'id'>
+  goals: EntityTable<TrainingGoal, 'id'>
   reports: EntityTable<CoachReport, 'id'>
   positions: EntityTable<MistakePosition, 'id'>
   positionAttempts: EntityTable<PositionAttempt, 'id'>
@@ -221,6 +259,12 @@ db.version(4).stores({
 db.version(5).stores({
   reports: 'id',
 })
+// v6: training sections — sessions, Puzzle Rush results and goals.
+db.version(6).stores({
+  sessions: '++id, startedAt',
+  rushes: '++id, mode, date',
+  goals: '++id, track',
+})
 
 export const defaultSettings = (): Settings => ({
   id: 'main',
@@ -252,6 +296,9 @@ export async function exportData(): Promise<string> {
     positionAttempts: await db.positionAttempts.toArray(),
     daysDone: await db.daysDone.toArray(),
     reports: await db.reports.toArray(),
+    sessions: await db.sessions.toArray(),
+    rushes: await db.rushes.toArray(),
+    goals: await db.goals.toArray(),
   }
   return JSON.stringify(data)
 }
@@ -262,6 +309,7 @@ export async function importData(json: string) {
   const tables = [
     db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta,
     db.lineProgress, db.lineAttempts, db.positions, db.positionAttempts, db.daysDone, db.reports,
+    db.sessions, db.rushes, db.goals,
   ]
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))
@@ -271,6 +319,9 @@ export async function importData(json: string) {
     await db.positionAttempts.bulkAdd(data.positionAttempts ?? [])
     await db.daysDone.bulkAdd(data.daysDone ?? [])
     await db.reports.bulkAdd(data.reports ?? [])
+    await db.sessions.bulkAdd(data.sessions ?? [])
+    await db.rushes.bulkAdd(data.rushes ?? [])
+    await db.goals.bulkAdd(data.goals ?? [])
     await db.settings.bulkAdd(data.settings ?? [])
     await db.ratings.bulkAdd(data.ratings ?? [])
     await db.games.bulkAdd(data.games ?? [])
