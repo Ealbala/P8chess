@@ -15,7 +15,8 @@ interface Props {
   showCoordinates?: boolean
   hidePieces?: boolean
   onSquareTap?: (square: Square) => void
-  arrows?: [string, string][]
+  /** [from, to, color?] — default green. */
+  arrows?: ([string, string] | [string, string, string])[]
 }
 
 const LAST_MOVE: CSSProperties = { background: 'rgba(250, 204, 21, 0.45)' }
@@ -89,7 +90,7 @@ export default function Board({
         onPieceDragBegin={(_, sq) => setSelected(sq as Square)}
         onSquareClick={(sq) => handleSquareClick(sq as Square)}
         customSquareStyles={styles}
-        customArrows={arrows?.map(([from, to]) => [from as Square, to as Square, 'rgba(22,163,74,0.8)'])}
+        customArrows={arrows?.map(([from, to, color]) => [from as Square, to as Square, color ?? 'rgba(22,163,74,0.8)'])}
         areArrowsAllowed={false}
         showBoardNotation={showCoordinates}
         autoPromoteToQueen

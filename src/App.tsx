@@ -2,6 +2,10 @@ import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { useData } from './lib/data'
 import { autoSync } from './lib/sync'
+import { runAnalysis } from './lib/analysisRunner'
+import { todaysPlan } from './lib/plan'
+import { dayKey } from './lib/dates'
+import { db } from './lib/db'
 import { LangContext, useT, type TKey } from './lib/i18n'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
@@ -29,6 +33,20 @@ export default function App() {
   useEffect(() => {
     if (username) autoSync(username)
   }, [username])
+
+  // Analyse new games with Stockfish in the background (no-op when nothing is pending).
+  const gameCount = data?.games.length ?? 0
+  const settingsForAnalysis = data?.settings
+  useEffect(() => {
+    if (settingsForAnalysis && gameCount) runAnalysis(settingsForAnalysis)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameCount, settingsForAnalysis?.focus])
+
+  // Remember the days on which the whole daily challenge was completed.
+  const challengeDone = !!data?.settings && todaysPlan({ ...data, settings: data.settings }).every((i) => i.complete)
+  useEffect(() => {
+    if (challengeDone && data && !data.daysDone.includes(dayKey())) db.daysDone.put({ day: dayKey() })
+  }, [challengeDone, data])
 
   if (!data) return null // database still loading (a few ms)
   if (!data.settings) return <Onboarding />

@@ -1,6 +1,6 @@
 // Pure functions that turn stored records into the numbers shown in the app.
 // Every metric here has a plain definition (see comments) — nothing is invented.
-import type { DrillSession, Game, PuzzleAttempt, RatingEntry, Settings, TimeControl } from './db'
+import type { DrillSession, Game, LineAttempt, PositionAttempt, PuzzleAttempt, RatingEntry, Settings, TimeControl } from './db'
 import { addDays, dayKey, parseDay, weekStart } from './dates'
 
 /**
@@ -95,12 +95,25 @@ export function trainingMinutes(attempts: PuzzleAttempt[], drills: DrillSession[
   return Math.round(sec / 60)
 }
 
-/** XP rules: correct puzzle 10, missed puzzle 2, drill round 5 + 1 per correct answer, game review 15. */
-export function totalXp(attempts: PuzzleAttempt[], drills: DrillSession[], games: Game[]): number {
+/**
+ * XP rules: correct puzzle 10, missed puzzle 2, drill round 5 + 1 per correct answer,
+ * game review 15, opening line 5, position from your games 15 (correct) / 3,
+ * completed daily challenge 25, weekly challenge met 50.
+ */
+export function totalXp(
+  attempts: PuzzleAttempt[],
+  drills: DrillSession[],
+  games: Game[],
+  extra: { lineAttempts?: LineAttempt[]; positionAttempts?: PositionAttempt[]; daysDone?: string[]; weeksMet?: number } = {},
+): number {
   return (
     attempts.reduce((s, a) => s + (a.correct ? 10 : 2), 0) +
     drills.reduce((s, d) => s + 5 + d.correct, 0) +
-    games.filter((g) => g.reviewed).length * 15
+    games.filter((g) => g.reviewed).length * 15 +
+    (extra.lineAttempts?.length ?? 0) * 5 +
+    (extra.positionAttempts ?? []).reduce((s, a) => s + (a.correct ? 15 : 3), 0) +
+    (extra.daysDone?.length ?? 0) * 25 +
+    (extra.weeksMet ?? 0) * 50
   )
 }
 
@@ -268,4 +281,54 @@ export function mistakeTagCounts(games: Game[]): { tag: string; count: number }[
   const map = new Map<string, number>()
   games.forEach((g) => g.mistakeTags?.forEach((t) => map.set(t, (map.get(t) ?? 0) + 1)))
   return [...map].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count)
+}
+
+export interface WeeklyChallenge {
+  target: number
+  played: number
+  reviewed: number
+  met: boolean
+  daysLeft: number
+  /** Consecutive weeks (ending this week if already met, else last week) with the target met. */
+  streak: number
+}
+
+/** Weekly challenge: play `weeklyGames[focus]` games in your focus time control (Mon–Sun). */
+export function weeklyChallenge(games: Game[], settings: Settings, now = new Date()): WeeklyChallenge {
+  const target = settings.weeklyGames[settings.focus]
+  const focus = games.filter((g) => g.tc === settings.focus)
+  const countIn = (start: Date) => {
+    const from = start.toISOString()
+    const to = addDays(start, 7).toISOString()
+    return focus.filter((g) => g.date >= from && g.date < to)
+  }
+  const thisWeek = countIn(weekStart(now))
+  const met = target > 0 && thisWeek.length >= target
+  let streak = met ? 1 : 0
+  for (let w = addDays(weekStart(now), -7); target > 0; w = addDays(w, -7)) {
+    if (countIn(w).length < target) break
+    streak++
+    if (streak > 520) break
+  }
+  return {
+    target,
+    played: thisWeek.length,
+    reviewed: thisWeek.filter((g) => g.reviewed).length,
+    met,
+    daysLeft: 7 - ((now.getDay() + 6) % 7),
+    streak,
+  }
+}
+
+/** Weeks since you started using the app in which the weekly challenge was met (for XP). */
+export function weeksMetSince(games: Game[], settings: Settings, now = new Date()): number {
+  const target = settings.weeklyGames[settings.focus]
+  if (target <= 0) return 0
+  let n = 0
+  for (let w = weekStart(new Date(settings.createdAt)); w <= now; w = addDays(w, 7)) {
+    const from = w.toISOString()
+    const to = addDays(w, 7).toISOString()
+    if (games.filter((g) => g.tc === settings.focus && g.date >= from && g.date < to).length >= target) n++
+  }
+  return n
 }

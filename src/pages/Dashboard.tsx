@@ -9,10 +9,12 @@ import { todaysPlan } from '../lib/plan'
 import {
   bestStreak, currentRating, dailySeries, gamesInRange, levelFromXp, lossStreakToday, mistakeTagCounts, needsReview,
   nextMilestone, practiceRating, ratingChange, record, streak, themeStats, totalXp, trainedDays, trainingMinutes, weeklyPace,
+  weeklyChallenge, weeksMetSince,
 } from '../lib/stats'
+import { db } from '../lib/db'
 import { Card, ProgressBar, SectionTitle, Segmented, Stat } from '../components/ui'
 
-export const ACT_ICON = { openings: '📖', tactics: '⚔️', calculation: '🧠', middlegame: '🏰', endgame: '🏁', blindfold: '🙈', review: '🔍' } as const
+export const ACT_ICON = { mistakes: '🎯', openings: '📖', tactics: '⚔️', calculation: '🧠', middlegame: '🏰', endgame: '🏁', blindfold: '🙈', review: '🔍' } as const
 
 export default function Dashboard({ data }: { data: AppData }) {
   const t = useT()
@@ -27,6 +29,10 @@ export default function Dashboard({ data }: { data: AppData }) {
   const change30 = ratingChange(ratings, tc, 30)
 
   const days = trainedDays(attempts, drills, games)
+  data.lineAttempts.forEach((a) => days.add(a.day))
+  data.positionAttempts.forEach((a) => days.add(a.day))
+  const weekly = weeklyChallenge(games, settings)
+  const dayStreak = streak(new Set(data.daysDone))
   const wk = dayKey(weekStart())
   const weekGames = gamesInRange(games, weekStart())
   const focusWeekGames = weekGames.filter((g) => g.tc === settings.focus)
@@ -36,7 +42,12 @@ export default function Dashboard({ data }: { data: AppData }) {
   const lossStreak = lossStreakToday(games)
   const tagCounts = mistakeTagCounts(games)
 
-  const xp = totalXp(attempts, drills, games)
+  const xp = totalXp(attempts, drills, games, {
+    lineAttempts: data.lineAttempts,
+    positionAttempts: data.positionAttempts,
+    daysDone: data.daysDone,
+    weeksMet: weeksMetSince(games, settings),
+  })
   const lvl = levelFromXp(xp)
   const plan = todaysPlan(data)
   const stats = themeStats(attempts)
@@ -49,6 +60,9 @@ export default function Dashboard({ data }: { data: AppData }) {
     { key: 'ach.streak7', done: bestStreak(days) >= 7, icon: '🔥' },
     { key: 'ach.correct50', done: attempts.filter((a) => a.correct).length >= 50, icon: '🎯' },
     { key: 'ach.reviews5', done: games.filter((g) => g.reviewed).length >= 5, icon: '🔍' },
+    { key: 'ach.week1', done: weeksMetSince(games, settings) >= 1, icon: '📅' },
+    { key: 'ach.days7', done: data.daysDone.length >= 7, icon: '🏅' },
+    { key: 'ach.mistakes10', done: data.positions.filter((p) => p.box >= 2).length >= 10, icon: '🎯' },
     {
       key: 'ach.milestone',
       done: (['rapid', 'blitz', 'bullet'] as const).some((c) => {
@@ -118,6 +132,49 @@ export default function Dashboard({ data }: { data: AppData }) {
         )
       )}
 
+      <Card className="flex flex-col gap-2 ring-2 ring-green-500">
+        <div className="flex items-center justify-between">
+          <div className="font-bold">🔥 {t('ch.daily')}</div>
+          <span className="text-xs font-semibold text-slate-500">
+            {t('ch.dailyText', { done: plan.filter((p) => p.complete).length, total: plan.length })}
+          </span>
+        </div>
+        <ProgressBar value={plan.filter((p) => p.complete).length / Math.max(1, plan.length)} />
+        {plan.every((p) => p.complete) ? (
+          <p className="text-sm font-semibold text-green-600">🎉 {t('ch.dailyDone')}</p>
+        ) : (
+          <Link to="/train" className="rounded-xl bg-green-600 py-2.5 text-center font-semibold text-white">
+            {t('ch.continue')} →
+          </Link>
+        )}
+        {dayStreak > 0 && <p className="text-xs text-slate-500">{t('ch.dayStreak', { n: dayStreak })}</p>}
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="font-bold">📅 {t('ch.weekly')}</div>
+          {weekly.target > 0 && <span className="text-xs text-slate-500">{t('ch.daysLeft', { n: weekly.daysLeft })}</span>}
+        </div>
+        {weekly.target > 0 ? (
+          <>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {t('ch.weeklyText', { target: weekly.target, tc: t(`tc.${settings.focus}`) })}
+            </p>
+            <div className="flex justify-between text-sm font-semibold">
+              <span>♟️ {t('ch.played', { n: weekly.played, t: weekly.target })}</span>
+              <span>🔍 {t('ch.reviewed', { n: weekly.reviewed, t: weekly.played })}</span>
+            </div>
+            <ProgressBar value={weekly.played / weekly.target} color={weekly.met ? 'bg-green-500' : 'bg-amber-400'} />
+            {weekly.met && <p className="text-sm font-semibold text-green-600">🏆 {t('ch.weekDone')}</p>}
+            {weekly.streak > 0 && <p className="text-xs text-slate-500">{t('ch.weekStreak', { n: weekly.streak })}</p>}
+          </>
+        ) : (
+          <Link to="/settings" className="text-sm text-green-600 underline">
+            {t('ch.setTarget')}
+          </Link>
+        )}
+      </Card>
+
       <Card className="flex flex-col gap-3">
         <SectionTitle>{t('dash.title')}</SectionTitle>
         <Segmented
@@ -146,6 +203,21 @@ export default function Dashboard({ data }: { data: AppData }) {
           )}
         </div>
         {goal !== null && goal > start && <ProgressBar value={(rating - start) / (goal - start)} />}
+        {goal !== null && rating >= goal && (
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-green-50 p-2 text-sm dark:bg-green-900/30">
+            <span>🏆 {t('goal.reached', { g: goal })}</span>
+            <button
+              className="rounded-lg bg-green-600 px-3 py-1 font-semibold text-white"
+              onClick={() =>
+                db.settings.update('main', {
+                  milestones: { ...settings.milestones, [tc]: [...settings.milestones[tc], Math.ceil((rating + 1) / 100) * 100] },
+                })
+              }
+            >
+              {t('goal.next', { g: Math.ceil((rating + 1) / 100) * 100 })}
+            </button>
+          </div>
+        )}
         {settings.milestones[tc].length > 1 && (
           <div className="flex flex-wrap gap-1.5">
             {[...settings.milestones[tc]].sort((a, b) => a - b).map((m) => (

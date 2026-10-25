@@ -3,7 +3,7 @@
 Tu entrenador personal de ajedrez: una app web instalable (PWA) que funciona en iPhone, tablet y computadora.
 Publicada en https://p8chess.vercel.app
 
-**Estado actual: Fase 2 completa + parte de la Fase 4 (aperturas, medio juego, prioridad por área floja).** Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
+**Estado actual: Fases 1–3 completas + parte de la Fase 4.** Lo que todavía no existe aparece marcado en la app como *"Todavía no disponible"* y en la hoja de ruta de **Ajustes**.
 
 ## Qué hace la Fase 1
 
@@ -129,8 +129,19 @@ public/data/puzzles.json   problemas de Lichess (generados con scripts/build_puz
 - **Medio juego**: ejercicios de Lichess de medio juego con temas de ataque, defensa y jugadas tranquilas.
 - **Prioridad**: % de acierto en tus últimos 30 intentos por área (mín. 10 para clasificar). El área más floja recibe +50% en el plan diario.
 
+## Análisis con Stockfish y retos (Fase 3)
+
+- **Stockfish 17.1 lite** corre en tu dispositivo (WebAssembly, `public/engine/`, ~7 MB, se descarga la primera vez que se usa). Sin servidor y sin costo.
+- Mientras la app está abierta analiza en segundo plano tus últimas 30 partidas de tu ritmo principal y cada partida nueva (profundidad 12).
+- Criterio (modelo de probabilidad de ganar de Lichess): pérdida de 10+ puntos = imprecisión, 20+ = error, 30+ = error grave. Los errores y errores graves (si la posición no estaba ya perdida) van a **Mi biblioteca de errores**.
+- **Entrenamiento con tus errores**: ves la posición de tu partida, buscás la mejor jugada y después la app muestra la mejor (verde), la que jugaste en la partida (roja) y tu respuesta (azul), con evaluaciones y la línea recomendada. Una jugada distinta de la del motor cuenta como correcta si pierde menos de 5 puntos de probabilidad. Repetición espaciada.
+- **Prioridad**: con 5 o más partidas analizadas, el área a reforzar es la fase (apertura / medio juego / final) con más errores cada 100 jugadas tuyas.
+- **Reto de hoy**: completar el plan diario (racha de días con el reto completo, +25 XP). **Reto semanal**: jugar las partidas semanales de tu ritmo principal (racha de semanas, +50 XP).
+- Al llegar a tu objetivo, la app propone el siguiente (+100).
+
 ## Créditos
 
 - Ejercicios: base de datos de Lichess (CC0).
+- Motor: Stockfish (GPL v3), build WebAssembly de nmrugg/stockfish.js.
 - Caballo del logo y piezas del tablero: set "cburnett" de Colin M.L. Burnett (licencias BSD/GPL/GFDL).
 

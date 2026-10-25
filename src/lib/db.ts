@@ -3,7 +3,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 
 export type TimeControl = 'rapid' | 'blitz' | 'bullet'
-export type Activity = 'openings' | 'tactics' | 'calculation' | 'middlegame' | 'endgame' | 'blindfold' | 'review'
+export type Activity = 'mistakes' | 'openings' | 'tactics' | 'calculation' | 'middlegame' | 'endgame' | 'blindfold' | 'review'
 export type Lang = 'en' | 'es'
 export type ThemePref = 'system' | 'light' | 'dark'
 
@@ -81,6 +81,51 @@ export interface Game {
   /** Your remaining clock (seconds) after each of your moves. */
   myClocks?: number[]
   plies?: number
+  /** Stockfish analysis summary (Phase 3). */
+  analysis?: GameAnalysis
+}
+
+export type Phase = 'opening' | 'middlegame' | 'endgame'
+
+export interface GameAnalysis {
+  depth: number
+  analyzedAt: string
+  inaccuracies: number
+  mistakes: number
+  blunders: number
+  /** Your moves and your mistakes+blunders per phase. */
+  moves: Record<Phase, number>
+  errors: Record<Phase, number>
+}
+
+/** A position from one of your games where you made a mistake (My Mistake Library). */
+export interface MistakePosition {
+  id: string // `${gameId}-${ply}`
+  gameId: number
+  ply: number // index of your move (0 = White's first move)
+  fen: string // position before your move
+  color: 'white' | 'black'
+  played: string // SAN you played
+  playedUci: string
+  best: string // SAN Stockfish prefers
+  bestUci: string
+  pv: string[] // best line in SAN (a few moves)
+  evalBest: number // centipawns, your point of view, after the best move
+  evalPlayed: number // after your move
+  drop: number // winning chances lost (0-100)
+  kind: 'mistake' | 'blunder'
+  phase: Phase
+  date: string // game date
+  box: number // spaced repetition (0 = never tried)
+  due: string
+}
+
+export interface PositionAttempt {
+  id?: number
+  posId: string
+  date: string
+  day: string
+  correct: boolean
 }
 
 export interface PuzzleAttempt {
@@ -111,6 +156,9 @@ export interface Meta {
 }
 
 export const db = new Dexie('my-chess-coach') as Dexie & {
+  positions: EntityTable<MistakePosition, 'id'>
+  positionAttempts: EntityTable<PositionAttempt, 'id'>
+  daysDone: EntityTable<{ day: string }, 'day'>
   lineProgress: EntityTable<LineProgress, 'lineId'>
   lineAttempts: EntityTable<LineAttempt, 'id'>
   settings: EntityTable<Settings, 'id'>
@@ -137,6 +185,12 @@ db.version(2).stores({
 db.version(3).stores({
   lineProgress: 'lineId',
   lineAttempts: '++id, lineId, day',
+})
+// v4: Stockfish analysis — mistake positions, attempts, completed daily challenges.
+db.version(4).stores({
+  positions: 'id, gameId, due',
+  positionAttempts: '++id, posId, day',
+  daysDone: 'day',
 })
 
 export const defaultSettings = (): Settings => ({
@@ -165,6 +219,9 @@ export async function exportData(): Promise<string> {
     meta: await db.meta.toArray(),
     lineProgress: await db.lineProgress.toArray(),
     lineAttempts: await db.lineAttempts.toArray(),
+    positions: await db.positions.toArray(),
+    positionAttempts: await db.positionAttempts.toArray(),
+    daysDone: await db.daysDone.toArray(),
   }
   return JSON.stringify(data)
 }
@@ -172,11 +229,17 @@ export async function exportData(): Promise<string> {
 export async function importData(json: string) {
   const data = JSON.parse(json)
   if (data.app !== 'my-chess-coach') throw new Error('Not a My Chess Coach backup file')
-  const tables = [db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta, db.lineProgress, db.lineAttempts]
+  const tables = [
+    db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta,
+    db.lineProgress, db.lineAttempts, db.positions, db.positionAttempts, db.daysDone,
+  ]
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))
     await db.lineProgress.bulkAdd(data.lineProgress ?? [])
     await db.lineAttempts.bulkAdd(data.lineAttempts ?? [])
+    await db.positions.bulkAdd(data.positions ?? [])
+    await db.positionAttempts.bulkAdd(data.positionAttempts ?? [])
+    await db.daysDone.bulkAdd(data.daysDone ?? [])
     await db.settings.bulkAdd(data.settings ?? [])
     await db.ratings.bulkAdd(data.ratings ?? [])
     await db.games.bulkAdd(data.games ?? [])
