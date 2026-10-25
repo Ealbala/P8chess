@@ -149,6 +149,16 @@ public/data/puzzles.json   problemas de Lichess (generados con scripts/build_puz
 - **Recordatorios**: Ajustes → Recordatorios genera eventos de calendario (`api/reminders.ts`, archivo .ics) con alerta: reto diario, partidas semanales (jueves) y cierre de semana (domingo). Las notificaciones push web en iPhone necesitarían un servidor y una base de datos; el calendario es gratis y confiable.
 - **Para probar el coach localmente** hace falta `vercel dev`; con `npm run dev` las funciones `/api` no existen.
 
+## Cómo se cuenta el progreso
+
+- **Solo cuenta lo que hacés bien.** Un ejercicio cuenta para el plan del día si lo resolvés sin pedir la solución. Los reintentos están permitidos.
+- Para el **porcentaje de acierto** (estadísticas y prioridades) solo vale el **primer intento sin pista**.
+- **Si te equivocás, la app no te muestra la respuesta**: te avisa y podés pensar de nuevo. Si querés, podés pedir una **pista** (marca la pieza que hay que mover) o **ver la solución**, pero entonces no cuenta como resuelto.
+- En los finales teóricos podés **deshacer** la jugada que tiró el resultado y pensar otra.
+- Las rondas a ciegas cuentan si tienen al menos 70% de acierto; la partida a ciegas cuenta si no la perdés.
+- **Historial** (Entrenar → Historial): todo lo que hiciste, separado en *a la primera*, *con reintentos* y *sin resolver*. Tocás cualquier ejercicio para repetirlo.
+- **Planes de medio juego** (Entrenar → Planes de medio juego): lecciones sobre tus estructuras (Colle, Francesa, peón aislado, Carlsbad). Las jugadas que se piden están verificadas con Stockfish.
+
 ## Créditos
 
 - Ejercicios: base de datos de Lichess (CC0).

@@ -22,3 +22,19 @@ describe('opening content', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 })
+
+import { STRATEGY } from '../../data/strategy'
+
+describe('strategy lessons', () => {
+  for (const l of STRATEGY) {
+    it(`${l.id}: legal position, side to move matches, accepted moves are legal`, () => {
+      const c = new Chess()
+      for (const san of l.moves.split(' ')) c.move(san)
+      expect(c.turn()).toBe(l.orientation === 'white' ? 'w' : 'b')
+      for (const s of l.steps) {
+        if (s.type === 'move') for (const m of [...s.accept, ...(s.alsoGood ?? [])]) expect(() => new Chess(c.fen()).move(m), m).not.toThrow()
+        else expect(s.options.filter((o) => o.correct)).toHaveLength(1)
+      }
+    })
+  }
+})

@@ -65,10 +65,15 @@ export function EndgameTrainer() {
   const [myMoves, setMyMoves] = useState(0)
   const [limit, setLimit] = useState(30)
   const recorded = useRef(false)
+  const mistakes = useRef(0)
+  const [canUndo, setCanUndo] = useState(false)
   const myColor = lesson && lesson.fen.split(' ')[1] === 'w' ? 'white' : 'black'
 
   async function reset() {
     if (!lesson) return
+    if (mistakes.current > 0) record(false, false)
+    mistakes.current = 0
+    setCanUndo(false)
     game.current = new Chess(lesson.fen)
     setFen(lesson.fen)
     setLast(null)
@@ -93,7 +98,7 @@ export function EndgameTrainer() {
 
   if (!lesson) return null
 
-  async function record(correct: boolean) {
+  async function record(correct: boolean, solved: boolean) {
     if (recorded.current) return
     recorded.current = true
     await db.attempts.add({
@@ -102,16 +107,32 @@ export function EndgameTrainer() {
       day: dayKey(),
       cat: 'endgame',
       correct,
+      solved,
       rating: 1500,
       themes: ['endgame', 'endgameTheory'],
       seconds: myMoves * 10,
     })
   }
 
-  function end(s: 'won' | 'held' | 'failed', msg: string) {
+  /** Success records the attempt; a mistake lets you undo it and think again. */
+  function end(s: 'won' | 'held' | 'failed', msg: string, undoable = false) {
     setStatus(s)
     setMessage(msg)
-    record(s !== 'failed')
+    if (s === 'failed') {
+      mistakes.current++
+      setCanUndo(undoable)
+      if (!undoable) record(false, false)
+    } else record(mistakes.current === 0, true)
+  }
+
+  function undo() {
+    game.current.undo()
+    setFen(game.current.fen())
+    setLast(null)
+    setMyMoves((n) => n - 1)
+    setCanUndo(false)
+    setMessage('')
+    setStatus('play')
   }
 
   function onMove(from: Square, to: Square, promotion?: string) {
@@ -133,8 +154,8 @@ export function EndgameTrainer() {
     const g = game.current
     setStatus('thinking')
     if (g.isCheckmate()) return end('won', t('eg.mate'))
-    if (g.isStalemate()) return end(lesson!.goal === 'draw' ? 'held' : 'failed', t('eg.stalemate'))
-    if (g.isDraw()) return end(lesson!.goal === 'draw' ? 'held' : 'failed', t('board.draw'))
+    if (g.isStalemate()) return end(lesson!.goal === 'draw' ? 'held' : 'failed', t('eg.stalemate'), true)
+    if (g.isDraw()) return end(lesson!.goal === 'draw' ? 'held' : 'failed', t('board.draw'), true)
     let r
     try {
       r = await probe(g.fen())
@@ -143,11 +164,11 @@ export function EndgameTrainer() {
     }
     // r.category is from the opponent's point of view (they are to move).
     if (lesson!.goal === 'win') {
-      if (!isLoss(r.category)) return end('failed', t('eg.lostWin'))
+      if (!isLoss(r.category)) return end('failed', t('eg.lostWin'), true)
       if (promoted) return end('won', t('eg.promoted'))
       if (n >= limit) return end('failed', t('eg.tooSlow', { n: limit }))
     } else {
-      if (isWin(r.category)) return end('failed', t('eg.lostDraw'))
+      if (isWin(r.category)) return end('failed', t('eg.lostDraw'), true)
       if (n >= DRAW_MOVES) return end('held', t('eg.held', { n: DRAW_MOVES }))
     }
     // Opponent plays the best tablebase move.
@@ -190,7 +211,12 @@ export function EndgameTrainer() {
             : `${t(lesson.goal === 'win' ? 'eg.goalWin' : 'eg.goalDraw')} · ${t('train.playAs', { color: t(myColor === 'white' ? 'games.white' : 'games.black') })}`}
       </div>
       <Board fen={fen} orientation={myColor} onMove={onMove} interactive={status === 'play'} lastMove={last} />
-      {(done || status === 'offline') && <Button onClick={reset}>{t('train.retry')}</Button>}
+      {canUndo && status === 'failed' && <Button onClick={undo}>↩️ {t('eg.undo')}</Button>}
+      {(done || status === 'offline') && (
+        <Button variant={canUndo ? 'ghost' : 'primary'} onClick={reset}>
+          {t('eg.restart')}
+        </Button>
+      )}
       <p className="text-center text-xs text-slate-400">{t('eg.source')}</p>
     </div>
   )
