@@ -51,7 +51,7 @@ export default function Onboarding() {
         />
       </div>
       <div className="text-center">
-        <div className="text-5xl">♞</div>
+        <img src={`${import.meta.env.BASE_URL}icons/icon.svg`} alt="" className="mx-auto h-24 w-24 rounded-3xl shadow-md" />
         <h1 className="mt-2 text-2xl font-bold">{t('onb.title')}</h1>
         <p className="mt-1 text-slate-500 dark:text-slate-400">{t('onb.sub')}</p>
       </div>

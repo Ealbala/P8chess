@@ -4,7 +4,7 @@
 import type { PuzzleAttempt } from './db'
 import { addDays } from './dates'
 
-export type PuzzleCat = 'tactics' | 'calculation' | 'endgame'
+export type PuzzleCat = 'tactics' | 'calculation' | 'middlegame' | 'endgame' | 'opening'
 
 export interface Puzzle {
   id: string
@@ -13,6 +13,8 @@ export interface Puzzle {
   rating: number
   themes: string[]
   cat: PuzzleCat
+  /** Opening ids (src/data/openings.ts) for "opening" puzzles. */
+  openings?: string[]
 }
 
 let cache: Promise<Puzzle[]> | null = null
@@ -38,8 +40,9 @@ export function pickPuzzle(
   attempts: PuzzleAttempt[],
   weakThemes: string[],
   exclude: Set<string> = new Set(),
+  openingId?: string,
 ): Puzzle | null {
-  const pool = all.filter((p) => p.cat === cat && !exclude.has(p.id))
+  const pool = all.filter((p) => p.cat === cat && !exclude.has(p.id) && (!openingId || p.openings?.includes(openingId)))
   const byId = new Map<string, PuzzleAttempt[]>()
   attempts.forEach((a) => byId.set(a.puzzleId, [...(byId.get(a.puzzleId) ?? []), a]))
 

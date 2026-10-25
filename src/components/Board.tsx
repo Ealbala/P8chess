@@ -15,6 +15,7 @@ interface Props {
   showCoordinates?: boolean
   hidePieces?: boolean
   onSquareTap?: (square: Square) => void
+  arrows?: [string, string][]
 }
 
 const LAST_MOVE: CSSProperties = { background: 'rgba(250, 204, 21, 0.45)' }
@@ -32,6 +33,7 @@ export default function Board({
   showCoordinates = true,
   hidePieces = false,
   onSquareTap,
+  arrows,
 }: Props) {
   const [selected, setSelected] = useState<Square | null>(null)
   const chess = useMemo(() => {
@@ -87,6 +89,8 @@ export default function Board({
         onPieceDragBegin={(_, sq) => setSelected(sq as Square)}
         onSquareClick={(sq) => handleSquareClick(sq as Square)}
         customSquareStyles={styles}
+        customArrows={arrows?.map(([from, to]) => [from as Square, to as Square, 'rgba(22,163,74,0.8)'])}
+        areArrowsAllowed={false}
         showBoardNotation={showCoordinates}
         autoPromoteToQueen
         animationDuration={200}
