@@ -1,6 +1,9 @@
 import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
 import { OpeningDetail, OpeningsHome, LineRoute } from './Openings'
-import { areaStats, endgameScore, priority } from '../lib/areas'
+import { MistakeTrainer, MistakesHome } from './Mistakes'
+import { areaStats, endgameScore, priority, weakestArea } from '../lib/areas'
+import { errorRates } from '../lib/analysis'
+import type { TKey } from '../lib/i18n'
 import type { AppData } from '../lib/data'
 import type { Settings } from '../lib/db'
 import { useT } from '../lib/i18n'
@@ -20,12 +23,15 @@ export default function Train({ data }: { data: AppData }) {
       <Route path="openings" element={<OpeningsHome data={data} />} />
       <Route path="openings/:id" element={<OpeningDetail data={data} />} />
       <Route path="line/:lineId" element={<LineRoute data={data} />} />
+      <Route path="mistakes" element={<MistakesHome data={data} />} />
+      <Route path="mistakes/:id" element={<MistakeTrainer data={data} />} />
       <Route path="blindfold" element={<CoordsDrill data={data} />} />
     </Routes>
   )
 }
 
 const LINK: Record<string, string> = {
+  mistakes: 'mistakes',
   openings: 'openings',
   middlegame: 'puzzles/middlegame',
   tactics: 'puzzles/tactics',
@@ -78,7 +84,7 @@ function TrainHome({ data }: { data: AppData }) {
       <Card>
         <SectionTitle>{t('train.free')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
-          {(['openings', 'tactics', 'calculation', 'middlegame', 'endgame', 'blindfold'] as const).map((a) => (
+          {(['mistakes', 'openings', 'tactics', 'calculation', 'middlegame', 'endgame', 'blindfold'] as const).map((a) => (
             <Link
               key={a}
               to={LINK[a]}
@@ -108,12 +114,29 @@ function PriorityCard({ data }: { data: AppData }) {
   const stats = areaStats(data.attempts, data.lineAttempts)
   const ranked = priority(stats)
   const weakest = ranked[0]
+  const fromGames = weakestArea(data)
+  const rates = errorRates(data.games)
   const eg = endgameScore(data.games.filter((g) => g.tc === data.settings.focus))
   const order = [...ranked, ...stats.filter((s) => !s.calibrated)]
   return (
     <Card className="flex flex-col gap-2 text-sm">
       <SectionTitle>🎯 {t('prio.title')}</SectionTitle>
-      {weakest ? (
+      {fromGames?.source === 'games' && (
+        <p className="font-semibold">
+          {t('prio.games', { g: fromGames.games, phase: t(`phase.${fromGames.area === 'openings' ? 'opening' : fromGames.area}` as TKey), rate: fromGames.rate.toFixed(1) })}
+        </p>
+      )}
+      {rates.games > 0 && (
+        <div className="flex gap-2 text-xs">
+          {rates.byPhase.map((p) => (
+            <span key={p.phase} className="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-slate-800">
+              {t(`phase.${p.phase}`)}: {p.rate.toFixed(1)}
+            </span>
+          ))}
+          <span className="text-slate-400">{t('an.rate')}</span>
+        </div>
+      )}
+      {fromGames?.source === 'games' ? null : weakest ? (
         <p className="font-semibold">
           {t('prio.weakest', { area: t(`area.${weakest.area}`), pct: Math.round(weakest.accuracy * 100), n: weakest.n })}
         </p>
@@ -126,7 +149,7 @@ function PriorityCard({ data }: { data: AppData }) {
           {s.calibrated ? (
             <>
               <div className="flex-1">
-                <ProgressBar value={s.accuracy} color={s === weakest ? 'bg-red-400' : 'bg-green-500'} />
+                <ProgressBar value={s.accuracy} color={s === weakest && fromGames?.source !== 'games' ? 'bg-red-400' : 'bg-green-500'} />
               </div>
               <span className="w-10 text-right font-semibold">{Math.round(s.accuracy * 100)}%</span>
             </>

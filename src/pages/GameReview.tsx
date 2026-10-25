@@ -1,5 +1,5 @@
 // Review one game: replay the moves, mark the key moment, tag what went wrong and
-// write the lesson. Tags are YOUR assessment — engine analysis arrives in Phase 3.
+// write the lesson. Tags are YOUR assessment; Stockfish findings are shown alongside.
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { Chess } from 'chess.js'
@@ -105,6 +105,21 @@ export default function GameReview({ data }: { data: AppData }) {
             {t('rev.accuracy')}: <b>{game.accuracy.toFixed(1)}</b>
           </div>
         )}
+        {game.analysis && (
+          <div className="mt-1 text-xs">
+            ⚙️ {t('an.game', { i: game.analysis.inaccuracies, m: game.analysis.mistakes, b: game.analysis.blunders })}
+          </div>
+        )}
+        {data.positions
+          .filter((p) => p.gameId === game.id)
+          .sort((a, b) => a.ply - b.ply)
+          .map((p) => (
+            <Link key={p.id} to={`/train/mistakes/${p.id}`} className="mt-1 block text-xs text-green-700 underline dark:text-green-400">
+              🎯 {Math.floor(p.ply / 2) + 1}
+              {p.color === 'white' ? '.' : '...'}
+              {p.played} → {t('mk.best')}: ?
+            </Link>
+          ))}
         {game.url && (
           <a href={game.url} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-green-600 underline">
             {t('rev.open')} ↗

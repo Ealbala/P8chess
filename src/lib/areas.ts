@@ -2,8 +2,9 @@
 // Definition: accuracy over your last 30 attempts in each area (puzzles; for openings,
 // line drills from memory). An area needs at least 10 attempts before it is ranked —
 // until then it is "calibrating" and gets a normal share of the daily plan.
-import type { Game, LineAttempt, PuzzleAttempt } from './db'
+import type { Game, LineAttempt, Phase, PuzzleAttempt } from './db'
 import { drillAccuracy } from './openings'
+import { errorRates } from './analysis'
 
 export const AREAS = ['openings', 'tactics', 'calculation', 'middlegame', 'endgame'] as const
 export type Area = (typeof AREAS)[number]
@@ -71,4 +72,25 @@ export function endgameScore(games: Game[]) {
   const known = games.filter((g) => endedInEndgame(g.pgn) !== null)
   const endgames = known.filter((g) => endedInEndgame(g.pgn))
   return { endgames: endgames.length, endgameScore: score(endgames), total: known.length, totalScore: score(known) }
+}
+
+const PHASE_AREA: Record<Phase, Area> = { opening: 'openings', middlegame: 'middlegame', endgame: 'endgame' }
+export const MIN_ANALYSED_GAMES = 5
+
+/**
+ * The area to boost today. Your real games come first: with 5+ games analysed by
+ * Stockfish, it is the game phase with the most mistakes per 100 of your moves.
+ * Otherwise, the area with the lowest puzzle/drill accuracy.
+ */
+export function weakestArea(data: { games: Game[]; attempts: PuzzleAttempt[]; lineAttempts: LineAttempt[] }):
+  | { area: Area; source: 'games'; rate: number; games: number }
+  | { area: Area; source: 'training'; accuracy: number; n: number }
+  | null {
+  const rates = errorRates(data.games)
+  if (rates.games >= MIN_ANALYSED_GAMES) {
+    const worst = [...rates.byPhase].filter((p) => p.moves >= 20).sort((a, b) => b.rate - a.rate)[0]
+    if (worst) return { area: PHASE_AREA[worst.phase], source: 'games', rate: worst.rate, games: rates.games }
+  }
+  const p = priority(areaStats(data.attempts, data.lineAttempts))[0]
+  return p ? { area: p.area, source: 'training', accuracy: p.accuracy, n: p.n } : null
 }

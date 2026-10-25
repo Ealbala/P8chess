@@ -12,7 +12,7 @@ const ROADMAP = {
   en: [
     ['✅', 'Phase 1 — Dashboard, goals, weekly games (manual), daily plan, puzzles, blindfold coordinates'],
     ['✅', 'Phase 2 — Chess.com import, review-before-playing, game review, time & opening stats'],
-    ['⏳', 'Phase 3 — Stockfish analysis, mistake detection, Mistake Library'],
+    ['✅', 'Phase 3 — Stockfish analysis on your device, mistake detection, My Mistake Library, daily and weekly challenges'],
     ['✅', 'Phase 4 (part) — Opening repertoire trainer with spaced repetition, middlegame puzzles, weakest-area-first plan'],
     ['⏳', 'Phase 4 (rest) — Blindfold levels 2–5, endgame theory positions'],
     ['⏳', 'Phase 5 — AI coach grounded on engine analysis, weekly reports'],
@@ -21,7 +21,7 @@ const ROADMAP = {
   es: [
     ['✅', 'Fase 1 — Dashboard, objetivos, partidas semanales (manual), plan diario, ejercicios, coordenadas a ciegas'],
     ['✅', 'Fase 2 — Importación de Chess.com, revisar antes de jugar, revisión de partidas, estadísticas de tiempo y aperturas'],
-    ['⏳', 'Fase 3 — Análisis con Stockfish, detección de errores, My Mistake Library'],
+    ['✅', 'Fase 3 — Análisis con Stockfish en tu dispositivo, detección de errores, biblioteca de errores, retos diarios y semanales'],
     ['✅', 'Fase 4 (parte) — Entrenador de repertorio con repetición espaciada, medio juego, plan priorizando lo más flojo'],
     ['⏳', 'Fase 4 (resto) — A ciegas niveles 2–5, posiciones teóricas de finales'],
     ['⏳', 'Fase 5 — Coach de IA basado en el análisis del motor, informes semanales'],

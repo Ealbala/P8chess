@@ -7,6 +7,8 @@ import { weekStart } from '../lib/dates'
 import { useLang, useT } from '../lib/i18n'
 import { openingFamily } from '../lib/chesscom'
 import { runSync, useSyncState } from '../lib/sync'
+import { useAnalysisState } from '../lib/analysisRunner'
+import { errorRates } from '../lib/analysis'
 import { gamesInRange, groupStats, needsReview, record, timeStats, type GroupStat } from '../lib/stats'
 import { Button, Card, Field, ProgressBar, SectionTitle, Segmented, inputClass } from '../components/ui'
 
@@ -33,6 +35,7 @@ export default function Games({ data }: { data: AppData }) {
       <h1 className="text-2xl font-bold">{t('games.title')}</h1>
 
       <SyncCard username={settings.chessComUsername} />
+      <AnalysisCard data={data} />
 
       <Card>
         <SectionTitle>{t('games.week')}</SectionTitle>
@@ -143,6 +146,44 @@ function SyncCard({ username }: { username: string }) {
       {sync.added !== null && <p className="text-xs text-green-600">✓ {t('sync.done', { n: sync.added })}</p>}
       {sync.error && <p className="text-xs text-red-500">{t(errorKey)}</p>}
       <p className="text-xs text-slate-400">{t('sync.note')}</p>
+    </Card>
+  )
+}
+
+function AnalysisCard({ data }: { data: AppData }) {
+  const t = useT()
+  const state = useAnalysisState()
+  const rates = errorRates(data.games)
+  if (!state.running && rates.games === 0) return null
+  return (
+    <Card className="flex flex-col gap-2 text-sm">
+      <SectionTitle>⚙️ {t('an.title')}</SectionTitle>
+      {state.running && (
+        <>
+          <p>{t('an.progress', { d: state.done + 1, t: state.total })}</p>
+          <ProgressBar value={state.done / Math.max(1, state.total)} />
+        </>
+      )}
+      {state.error && <p className="text-xs text-red-500">{t('an.error')}</p>}
+      {rates.games > 0 && (
+        <>
+          <p>{t('an.summary', { n: rates.games })}</p>
+          <div className="font-semibold">{t('an.rate')}</div>
+          {rates.byPhase.map((p) => (
+            <div key={p.phase} className="flex items-center gap-2">
+              <span className="w-24 capitalize">{t(`phase.${p.phase}`)}</span>
+              <div className="flex-1">
+                <ProgressBar value={Math.min(1, p.rate / 10)} color="bg-red-400" />
+              </div>
+              <span className="w-10 text-right font-semibold">{p.rate.toFixed(1)}</span>
+            </div>
+          ))}
+          <Link to="/train/mistakes" className="text-green-600 underline">
+            🎯 {t('mk.title')} ({data.positions.length})
+          </Link>
+        </>
+      )}
+      <p className="text-xs text-slate-400">{t('an.note', { tc: t(`tc.${data.settings.focus}`) })}</p>
     </Card>
   )
 }
