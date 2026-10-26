@@ -1,6 +1,6 @@
 // What the coach (Claude via MCP) sent to the app: messages, assigned training, goals.
 // The app reads it with the app password; items stay on the server (last 50).
-import { inboxPath, passwordOk, readJson, storageReady, type InboxItem } from './_store'
+import { inboxPath, passwordOk, readJson, storageReady, type InboxItem } from './_store.js'
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
