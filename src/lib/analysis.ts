@@ -137,6 +137,7 @@ export function findMistakes(game: Game, sans: string[], evals: PositionEval[]):
       date: game.date,
       box: 0,
       due: today,
+      clock: game.myClocks?.[Math.floor(i / 2)],
     })
   }
   return {

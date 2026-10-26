@@ -49,7 +49,7 @@ export function buildContext(data: AppData): string {
   const prev30 = fg.filter((g) => g.date < iso(addDays(now, -30)) && g.date >= iso(addDays(now, -60)))
   const wk = weekStart()
   const lastWk = addDays(wk, -7)
-  const byId = new Map(games.map((g) => [g.id, g]))
+  const byId = new Map(data.allGames.map((g) => [g.id, g]))
   const rep = repertoire(settings)
 
   const ctx = {

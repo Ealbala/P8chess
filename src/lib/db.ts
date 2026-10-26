@@ -3,7 +3,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 
 export type TimeControl = 'rapid' | 'blitz' | 'bullet'
-export type Activity = 'mistakes' | 'openings' | 'tactics' | 'calculation' | 'middlegame' | 'endgame' | 'blindfold' | 'review'
+export type Activity = 'mistakes' | 'threats' | 'openings' | 'tactics' | 'calculation' | 'middlegame' | 'endgame' | 'blindfold' | 'review'
 export type Lang = 'en' | 'es'
 export type ThemePref = 'system' | 'light' | 'dark'
 
@@ -27,6 +27,8 @@ export interface Settings {
   coachPassword?: string
   /** Daily reminder time, "HH:MM". */
   reminderTime?: string
+  /** Personal Lichess API token (no scopes needed) for the opening explorer. */
+  lichessToken?: string
 }
 
 /** A custom training session (a section, or "what I do worst", for N minutes). */
@@ -45,11 +47,22 @@ export interface TrainingSession {
 
 export interface RushResult {
   id?: number
-  mode: '3min' | '5min' | 'survival'
+  mode: '3min' | '5min' | 'survival' | 'per30'
   track: string
   score: number
   mistakes: number
   date: string
+}
+
+/** Monthly exam (one per month). */
+export interface Exam {
+  id: string // YYYY-MM
+  puzzleIds: string[]
+  /** null = not answered yet. */
+  results: (boolean | null)[]
+  startedAt: string
+  finishedAt?: string
+  performance?: number
 }
 
 /** A training objective, e.g. "Pawns rating to 1700". */
@@ -105,7 +118,7 @@ export interface Game {
   ratingAfter?: number
   opponentRating?: number
   opening?: string
-  source: 'manual' | 'chesscom'
+  source: 'manual' | 'chesscom' | 'bot'
   reviewed: boolean
   reviewedAt?: string
   lesson?: string
@@ -166,6 +179,11 @@ export interface MistakePosition {
   date: string // game date
   box: number // spaced repetition (0 = never tried)
   due: string
+  /** Threat trainer ("how does the opponent punish it?"): its own spaced repetition. */
+  threatBox?: number
+  threatDue?: string
+  /** Your clock (seconds) when you made the move, if the game has clock data. */
+  clock?: number
 }
 
 export interface PositionAttempt {
@@ -177,6 +195,8 @@ export interface PositionAttempt {
   correct: boolean
   /** Found without revealing the answer (retries allowed). Missing on old records = correct. */
   solved?: boolean
+  /** 'threat' = threat trainer (find the opponent's punishment). Missing = find your best move. */
+  kind?: 'threat'
 }
 
 export interface PuzzleAttempt {
@@ -215,6 +235,7 @@ export interface Meta {
 }
 
 export const db = new Dexie('my-chess-coach') as Dexie & {
+  exams: EntityTable<Exam, 'id'>
   sessions: EntityTable<TrainingSession, 'id'>
   rushes: EntityTable<RushResult, 'id'>
   goals: EntityTable<TrainingGoal, 'id'>
@@ -265,6 +286,10 @@ db.version(6).stores({
   rushes: '++id, mode, date',
   goals: '++id, track',
 })
+// v7: monthly exams.
+db.version(7).stores({
+  exams: 'id',
+})
 
 export const defaultSettings = (): Settings => ({
   id: 'main',
@@ -299,6 +324,7 @@ export async function exportData(): Promise<string> {
     sessions: await db.sessions.toArray(),
     rushes: await db.rushes.toArray(),
     goals: await db.goals.toArray(),
+    exams: await db.exams.toArray(),
   }
   return JSON.stringify(data)
 }
@@ -309,7 +335,7 @@ export async function importData(json: string) {
   const tables = [
     db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta,
     db.lineProgress, db.lineAttempts, db.positions, db.positionAttempts, db.daysDone, db.reports,
-    db.sessions, db.rushes, db.goals,
+    db.sessions, db.rushes, db.goals, db.exams,
   ]
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))
@@ -322,6 +348,7 @@ export async function importData(json: string) {
     await db.sessions.bulkAdd(data.sessions ?? [])
     await db.rushes.bulkAdd(data.rushes ?? [])
     await db.goals.bulkAdd(data.goals ?? [])
+    await db.exams.bulkAdd(data.exams ?? [])
     await db.settings.bulkAdd(data.settings ?? [])
     await db.ratings.bulkAdd(data.ratings ?? [])
     await db.games.bulkAdd(data.games ?? [])

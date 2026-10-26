@@ -1,11 +1,15 @@
 import { Link, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router'
 import { OpeningDetail, OpeningsHome, LineRoute } from './Openings'
 import { MistakeTrainer, MistakesHome } from './Mistakes'
+import { ThreatTrainer, ThreatsHome } from './Threats'
 import { BlindGame, BlindfoldHome, CalcDrill, MemoryDrill, MovesDrill } from './Blindfold'
 import { EndgameTrainer, EndgamesHome } from './Endgames'
 import { StrategyHome, StrategyTrainer } from './Strategy'
 import History from './History'
 import Lesson from './Lesson'
+import Play from './Play'
+import Exam from './Exam'
+import Explorer from './Explorer'
 import { Rush, SessionRunner, TrackPage, TrainingHub } from './Training'
 import { areaStats, endgameScore, priority, weakestArea } from '../lib/areas'
 import { errorRates } from '../lib/analysis'
@@ -31,6 +35,8 @@ export default function Train({ data }: { data: AppData }) {
       <Route path="openings/:id" element={<OpeningDetail data={data} />} />
       <Route path="line/:lineId" element={<LineRoute data={data} />} />
       <Route path="mistakes" element={<MistakesHome data={data} />} />
+      <Route path="threats" element={<ThreatsHome data={data} />} />
+      <Route path="threats/:id" element={<ThreatTrainer data={data} />} />
       <Route path="mistakes/:id" element={<MistakeTrainer data={data} />} />
       <Route path="blindfold" element={<BlindfoldHome data={data} />} />
       <Route path="blindfold/1" element={<CoordsDrill data={data} />} />
@@ -43,6 +49,9 @@ export default function Train({ data }: { data: AppData }) {
       <Route path="strategy/:id" element={<StrategyTrainer />} />
       <Route path="history" element={<History data={data} />} />
       <Route path="practice" element={<TrainingHub data={data} />} />
+      <Route path="play" element={<Play data={data} />} />
+      <Route path="exam" element={<Exam data={data} />} />
+      <Route path="explorer" element={<Explorer data={data} />} />
       <Route path="track/:id" element={<TrackPage data={data} />} />
       <Route path="lesson/:id" element={<Lesson />} />
       <Route path="session" element={<SessionRunner key={loc.search} data={data} />} />
@@ -55,6 +64,7 @@ export default function Train({ data }: { data: AppData }) {
 
 const LINK: Record<string, string> = {
   mistakes: 'mistakes',
+  threats: 'threats',
   openings: 'openings',
   middlegame: 'puzzles/middlegame',
   tactics: 'puzzles/tactics',
@@ -117,7 +127,7 @@ function TrainHome({ data }: { data: AppData }) {
       <Card>
         <SectionTitle>{t('train.free')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
-          {(['mistakes', 'openings', 'tactics', 'calculation', 'middlegame', 'endgame', 'blindfold'] as const).map((a) => (
+          {(['mistakes', 'threats', 'openings', 'tactics', 'calculation', 'middlegame', 'endgame', 'blindfold'] as const).map((a) => (
             <Link
               key={a}
               to={LINK[a]}
@@ -127,6 +137,10 @@ function TrainHome({ data }: { data: AppData }) {
               {t(`act.${a}`)}
             </Link>
           ))}
+          <Link to="play" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800">
+            <span className="text-2xl">🤖</span>
+            {t('play.title')}
+          </Link>
           <Link to="strategy" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 p-3 text-center text-sm font-medium dark:bg-slate-800">
             <span className="text-2xl">♜</span>
             {t('st.title')}

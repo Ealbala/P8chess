@@ -52,10 +52,10 @@ export default function History({ data }: { data: AppData }) {
       out.push({
         key: `p${a.id}`,
         date: a.date,
-        icon: '🎯',
-        title: `${t('mk.title')} · ${Math.floor(p.ply / 2) + 1}${p.color === 'white' ? '.' : '...'}${p.played}`,
+        icon: a.kind === 'threat' ? '🚨' : '🎯',
+        title: `${t(a.kind === 'threat' ? 'th.title' : 'mk.title')} · ${Math.floor(p.ply / 2) + 1}${p.color === 'white' ? '.' : '...'}${p.played}`,
         result: res(a.correct, a.solved),
-        link: `/train/mistakes/${p.id}`,
+        link: a.kind === 'threat' ? `/train/threats/${p.id}` : `/train/mistakes/${p.id}`,
       })
     }
     for (const a of data.lineAttempts) {

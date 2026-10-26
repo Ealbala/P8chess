@@ -38,3 +38,19 @@ describe('api/coach', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('api/backup', async () => {
+  const { GET, POST } = await import('../../../api/backup')
+  it('reports when storage is not configured, and refuses without it', async () => {
+    expect(await (await GET(new Request('https://x.test/api/backup?status'))).json()).toEqual({ configured: false })
+    const res = await POST(new Request('https://x.test/api/backup', { method: 'POST', body: 'x' }))
+    expect(res.status).toBe(503)
+  })
+  it('checks the app password', async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = 'test'
+    process.env.COACH_PASSWORD = 'secret'
+    const res = await GET(new Request('https://x.test/api/backup', { headers: { 'x-app-key': 'nope' } }))
+    expect(res.status).toBe(401)
+    delete process.env.BLOB_READ_WRITE_TOKEN
+  })
+})

@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { backupNow, cloudStatus, lastBackup, restoreFromCloud } from '../lib/cloud'
 import type { AppData } from '../lib/data'
 import { db, exportData, importData, resetAll, type Settings, type TimeControl } from '../lib/db'
-import { useLang, useT } from '../lib/i18n'
+import { useLang, useT, type TKey } from '../lib/i18n'
 import { currentRating } from '../lib/stats'
 import { runSync } from '../lib/sync'
 import { Button, Card, Field, SectionTitle, Segmented, inputClass } from '../components/ui'
@@ -215,6 +217,24 @@ export default function SettingsPage({ data }: { data: AppData }) {
         />
       </Card>
 
+      <CloudCard password={settings.coachPassword} />
+
+      <Card className="flex flex-col gap-2">
+        <SectionTitle>🔭 {t('xp.tokenTitle')}</SectionTitle>
+        <p className="text-xs text-slate-500">{t('xp.tokenNote')}</p>
+        <input
+          className={inputClass}
+          type="password"
+          autoComplete="off"
+          placeholder="lip_…"
+          value={settings.lichessToken ?? ''}
+          onChange={(e) => update({ lichessToken: e.target.value.trim() })}
+        />
+        <a className="text-xs text-green-600 underline" href="https://lichess.org/account/oauth/token/create?description=Pocho+Chess" target="_blank" rel="noreferrer">
+          {t('xp.tokenCreate')} ↗
+        </a>
+      </Card>
+
       <Card className="flex flex-col gap-2">
         <SectionTitle>{t('set.backup')}</SectionTitle>
         <p className="text-xs text-slate-500">{t('set.backupNote')}</p>
@@ -250,5 +270,53 @@ export default function SettingsPage({ data }: { data: AppData }) {
         </ul>
       </Card>
     </div>
+  )
+}
+
+function CloudCard({ password }: { password?: string }) {
+  const t = useT()
+  const lang = useLang()
+  const [configured, setConfigured] = useState<boolean | null | 'loading'>('loading')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const last = useLiveQuery(() => lastBackup())
+
+  useEffect(() => {
+    cloudStatus().then(setConfigured)
+  }, [])
+
+  async function run(kind: 'backup' | 'restore') {
+    if (!password) return setMsg({ ok: false, text: t('cloud.err.no-password') })
+    if (kind === 'restore' && !confirm(t('cloud.restoreConfirm'))) return
+    setBusy(true)
+    setMsg(null)
+    const r = kind === 'backup' ? await backupNow(password) : await restoreFromCloud(password)
+    setBusy(false)
+    if (r.ok) setMsg({ ok: true, text: kind === 'backup' ? t('cloud.saved') : t('cloud.restored') })
+    else setMsg({ ok: false, text: t(`cloud.err.${r.error}` as TKey) })
+  }
+
+  return (
+    <Card className="flex flex-col gap-2">
+      <SectionTitle>☁️ {t('cloud.title')}</SectionTitle>
+      <p className="text-xs text-slate-500">{t('cloud.note')}</p>
+      {configured === false && (
+        <ol className="list-decimal pl-5 text-xs text-amber-800 dark:text-amber-200">
+          <li>{t('cloud.setup1')}</li>
+          <li>{t('cloud.setup2')}</li>
+          <li>{t('cloud.setup3')}</li>
+        </ol>
+      )}
+      <p className="text-xs">{last ? t('cloud.last', { d: new Date(last).toLocaleString(lang, { dateStyle: 'short', timeStyle: 'short' }) }) : t('cloud.never')}</p>
+      <div className="flex gap-2">
+        <Button variant="secondary" className="flex-1" disabled={busy || configured !== true} onClick={() => run('backup')}>
+          ☁️⬆️ {t('cloud.backup')}
+        </Button>
+        <Button variant="secondary" className="flex-1" disabled={busy || configured !== true} onClick={() => run('restore')}>
+          ☁️⬇️ {t('cloud.restore')}
+        </Button>
+      </div>
+      {msg && <p className={`text-xs ${msg.ok ? 'text-green-600' : 'text-red-500'}`}>{msg.text}</p>}
+    </Card>
   )
 }

@@ -178,6 +178,12 @@ function AnalysisCard({ data }: { data: AppData }) {
               <span className="w-10 text-right font-semibold">{p.rate.toFixed(1)}</span>
             </div>
           ))}
+          {(() => {
+            const timed = data.positions.filter((p) => p.clock !== undefined)
+            if (timed.length < 5) return null
+            const low = timed.filter((p) => p.clock! < 60).length
+            return <p>⏱️ {t('time.pressure', { pct: Math.round((low / timed.length) * 100), n: timed.length })}</p>
+          })()}
           <Link to="/train/mistakes" className="text-green-600 underline">
             🎯 {t('mk.title')} ({data.positions.length})
           </Link>
