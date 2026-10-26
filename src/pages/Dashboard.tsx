@@ -283,8 +283,8 @@ export default function Dashboard({ data }: { data: AppData }) {
         <Stat
           icon="🧩"
           label={t('dash.exercises')}
-          value={attempts.filter((a) => a.day >= wk && (a.solved ?? a.correct)).length + drills.filter((d) => d.day >= wk && drillPassed(d)).length}
-          sub={t('dash.exercisesTotal', { n: attempts.filter((a) => a.solved ?? a.correct).length + drills.filter(drillPassed).length })}
+          value={attempts.filter((a) => a.day >= wk && (a.solved ?? a.correct)).length + drills.filter((d) => d.day >= wk && drillPassed(d, drills)).length}
+          sub={t('dash.exercisesTotal', { n: attempts.filter((a) => a.solved ?? a.correct).length + drills.filter((d) => drillPassed(d, drills)).length })}
         />
       </div>
 

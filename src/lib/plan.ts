@@ -3,7 +3,7 @@
 // and only what you did WELL counts:
 //  - puzzles / your mistakes: solved without showing the solution (retries are fine)
 //  - opening lines: learned, or reviewed without asking for the arrow
-//  - blindfold: every finished round or blindfold game, mistakes included
+//  - blindfold: finished rounds reaching a bar that rises gradually (0% → 70%), or a blindfold game
 //  - review: a game reviewed
 // Your weakest area (see areas.ts) gets 50% more items.
 import type { Activity, DrillSession, Game, LineAttempt, LineProgress, MistakePosition, PositionAttempt, PuzzleAttempt, Settings } from './db'
@@ -55,9 +55,21 @@ export function buildPlan(
   return items
 }
 
-/** Every finished blindfold round or game counts, even with mistakes (it's the effort that trains). */
-export function drillPassed(d: DrillSession): boolean {
-  return d.total > 0
+/**
+ * Accuracy a blindfold round needs to count: 0% for your first rounds of each exercise,
+ * then +5% per round already done, up to 70%. Mistakes are fine at the start; the bar rises
+ * as you practise.
+ */
+export function drillRequired(kind: DrillSession['kind'], drills: DrillSession[], before?: string): number {
+  const prior = drills.filter((d) => d.kind === kind && d.total > 0 && (before === undefined || d.date < before)).length
+  return Math.min(0.7, Math.round(prior * 5) / 100)
+}
+
+/** A finished blindfold game always counts; a round counts if it reached its required accuracy. */
+export function drillPassed(d: DrillSession, drills: DrillSession[]): boolean {
+  if (d.total <= 0) return false
+  if (d.kind === 'blind-game') return true
+  return d.correct / d.total >= drillRequired(d.kind, drills, d.date) - 1e-9
 }
 
 export function planProgress(
@@ -67,7 +79,7 @@ export function planProgress(
 ): number {
   switch (item.activity) {
     case 'blindfold':
-      return data.drills.filter((d) => d.day === day && drillPassed(d)).length
+      return data.drills.filter((d) => d.day === day && drillPassed(d, data.drills)).length
     case 'review':
       return data.games.filter((g) => g.reviewedAt && dayKey(new Date(g.reviewedAt)) === day).length
     case 'openings':
