@@ -13,7 +13,7 @@ import PuzzleCore, { savePuzzleAttempt, type PuzzleResult } from '../components/
 import { Button, Card, ProgressBar, SectionTitle, Segmented } from '../components/ui'
 
 const DURATIONS = [10, 20, 30, 45, 60, 90]
-const RUSH_MODES: RushResult['mode'][] = ['3min', '5min', 'survival']
+const RUSH_MODES: RushResult['mode'][] = ['3min', '5min', 'survival', 'per30']
 
 function Back({ to = '/train' }: { to?: string }) {
   const t = useT()
@@ -84,6 +84,25 @@ export function TrainingHub({ data }: { data: AppData }) {
       </Card>
 
       <RushCard data={data} />
+      <div className="grid grid-cols-2 gap-2">
+        <Link to="/train/exam">
+          <Card className="h-full p-3 text-sm">
+            <div className="font-bold">📝 {t('exam.title')}</div>
+            <div className="text-xs text-slate-500">
+              {(() => {
+                const done = data.exams.filter((e) => e.finishedAt).sort((a, b) => a.id.localeCompare(b.id))
+                return done.length ? t('exam.last', { n: done[done.length - 1].performance ?? 0 }) : t('exam.teaser')
+              })()}
+            </div>
+          </Card>
+        </Link>
+        <Link to="/train/play">
+          <Card className="h-full p-3 text-sm">
+            <div className="font-bold">🤖 {t('play.title')}</div>
+            <div className="text-xs text-slate-500">{t('play.teaser')}</div>
+          </Card>
+        </Link>
+      </div>
       <GoalsCard data={data} />
 
       {groups.map((g) => (
@@ -135,7 +154,7 @@ function RushCard({ data, track = 'all' }: { data: AppData; track?: string }) {
     <Card className="flex flex-col gap-2">
       <div className="font-bold">⚡ Puzzle Rush</div>
       <p className="text-xs text-slate-500">{t('rush.intro')}</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {RUSH_MODES.map((m) => (
           <Link key={m} to={`/train/rush?mode=${m}&track=${track}`} className="rounded-xl bg-amber-50 p-2 text-center ring-1 ring-amber-200 dark:bg-amber-900/30 dark:ring-amber-800">
             <div className="text-sm font-bold">{t(`rush.${m}`)}</div>
@@ -486,7 +505,9 @@ export function SessionRunner({ data }: { data: AppData }) {
 
 // ---------- Puzzle Rush ----------
 
-const RUSH_SECONDS: Record<RushResult['mode'], number | null> = { '3min': 180, '5min': 300, survival: null }
+const RUSH_SECONDS: Record<RushResult['mode'], number | null> = { '3min': 180, '5min': 300, survival: null, per30: null }
+/** Seconds allowed per puzzle (clock training): only in the "per30" mode. */
+const PER_PUZZLE: Partial<Record<RushResult['mode'], number>> = { per30: 30 }
 const STRIKES = 3
 
 export function Rush({ data }: { data: AppData }) {
@@ -503,6 +524,8 @@ export function Rush({ data }: { data: AppData }) {
   const [strikes, setStrikes] = useState(0)
   const [left, setLeft] = useState(RUSH_SECONDS[mode] ?? 0)
   const [failed, setFailed] = useState<Puzzle[]>([])
+  const [puzzleLeft, setPuzzleLeft] = useState(PER_PUZZLE[mode] ?? 0)
+  const resolved = useRef(new Set<string>())
   const level = useRef(700)
   const seen = useRef(new Set<string>())
   const stateRef = useRef({ score: 0, strikes: 0, over: false })
@@ -521,6 +544,22 @@ export function Rush({ data }: { data: AppData }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left])
 
+  // Per-puzzle clock: running out of time counts as a mistake.
+  useEffect(() => {
+    if (stage !== 'run' || !PER_PUZZLE[mode] || !puzzle) return
+    setPuzzleLeft(PER_PUZZLE[mode]!)
+    const id = setInterval(() => setPuzzleLeft((s) => s - 1), 1000)
+    return () => clearInterval(id)
+  }, [stage, mode, puzzle])
+  useEffect(() => {
+    if (stage === 'run' && PER_PUZZLE[mode] && puzzle && puzzleLeft <= 0 && !resolved.current.has(puzzle.id)) {
+      const p = puzzle
+      setPuzzle(null)
+      onResult(p, { correct: false, solved: false, seconds: PER_PUZZLE[mode]! })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzleLeft])
+
   async function next() {
     const all = await loadPuzzles()
     const p = pickForTracks(all, tracks, level.current, seen.current, [], 80)
@@ -534,6 +573,7 @@ export function Rush({ data }: { data: AppData }) {
     setBestBefore(best)
     level.current = 700
     seen.current = new Set()
+    resolved.current = new Set()
     setScore(0)
     setStrikes(0)
     setFailed([])
@@ -551,7 +591,8 @@ export function Rush({ data }: { data: AppData }) {
   }
 
   function onResult(p: Puzzle, r: PuzzleResult) {
-    if (stateRef.current.over) return
+    if (stateRef.current.over || resolved.current.has(p.id)) return
+    resolved.current.add(p.id)
     savePuzzleAttempt(p, r, { rush: true })
     if (r.correct) {
       stateRef.current.score++
@@ -579,7 +620,9 @@ export function Rush({ data }: { data: AppData }) {
 
       {stage === 'ready' && (
         <Card className="flex flex-col items-center gap-3 py-6 text-center">
-          <p className="text-sm">{t(mode === 'survival' ? 'rush.rulesSurvival' : 'rush.rulesTimed', { s: STRIKES, m: (RUSH_SECONDS[mode] ?? 0) / 60 })}</p>
+          <p className="text-sm">
+            {t(mode === 'per30' ? 'rush.rulesPer30' : mode === 'survival' ? 'rush.rulesSurvival' : 'rush.rulesTimed', { s: STRIKES, m: (RUSH_SECONDS[mode] ?? 0) / 60 })}
+          </p>
           <div className="text-sm">{t('rush.best', { n: best })}</div>
           <Button className="w-full" onClick={start}>
             ▶ {t('common.start')}
@@ -592,6 +635,9 @@ export function Rush({ data }: { data: AppData }) {
           <div className="flex items-center justify-between">
             <span className="text-3xl font-extrabold text-green-600">{score}</span>
             <span className="text-xl">{'❌'.repeat(strikes)}{'⚪'.repeat(STRIKES - strikes)}</span>
+            {PER_PUZZLE[mode] && (
+              <span className={`font-mono text-xl font-bold ${puzzleLeft <= 10 ? 'text-red-500' : ''}`}>⏱ {Math.max(0, puzzleLeft)}s</span>
+            )}
             {RUSH_SECONDS[mode] !== null && (
               <span className={`font-mono text-xl font-bold ${left <= 20 ? 'text-red-500' : ''}`}>
                 {Math.floor(left / 60)}:{String(Math.max(0, left) % 60).padStart(2, '0')}

@@ -8,10 +8,22 @@ import { MOVE_COLORS, explainLine } from '../lib/explain'
 import { useLang, useT } from '../lib/i18n'
 import { speak } from '../pages/Blindfold'
 
-export default function ExplainPlayer({ fen, moves, autoPlay = true }: { fen: string; moves: string[]; autoPlay?: boolean }) {
+export default function ExplainPlayer({
+  fen,
+  moves,
+  autoPlay = true,
+  perspective = 'opponent',
+  orientation,
+}: {
+  fen: string
+  moves: string[]
+  autoPlay?: boolean
+  perspective?: 'opponent' | 'threat'
+  orientation?: 'white' | 'black'
+}) {
   const t = useT()
   const lang = useLang()
-  const { steps, summary } = useMemo(() => explainLine(fen, moves, lang), [fen, moves, lang])
+  const { steps, summary } = useMemo(() => explainLine(fen, moves, lang, perspective), [fen, moves, lang, perspective])
   const [i, setI] = useState(0) // index of the step shown (0 = after the opponent's setup move)
   const [playing, setPlaying] = useState(autoPlay)
   const [voice, setVoice] = useState(false)
@@ -46,7 +58,7 @@ export default function ExplainPlayer({ fen, moves, autoPlay = true }: { fen: st
 
   return (
     <div className="flex flex-col gap-2">
-      <Board fen={step.fen} orientation={solver} interactive={false} lastMove={[step.from, step.to]} arrows={arrows} />
+      <Board fen={step.fen} orientation={orientation ?? solver} interactive={false} lastMove={[step.from, step.to]} arrows={arrows} />
       <ProgressBar value={i / Math.max(1, steps.length - 1)} />
       <div
         className={`min-h-20 rounded-xl p-3 text-sm ${

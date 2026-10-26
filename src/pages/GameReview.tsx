@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { Chess } from 'chess.js'
 import Board from '../components/Board'
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button, Card, ProgressBar, inputClass } from '../components/ui'
 import type { AppData } from '../lib/data'
 import { db } from '../lib/db'
@@ -24,7 +25,7 @@ export default function GameReview({ data }: { data: AppData }) {
   const lang = useLang()
   const navigate = useNavigate()
   const { id } = useParams()
-  const game = data.games.find((g) => g.id === Number(id))
+  const game = data.allGames.find((g) => g.id === Number(id))
 
   // Positions after every ply, computed once from the PGN.
   const replay = useMemo(() => {
@@ -181,6 +182,8 @@ export default function GameReview({ data }: { data: AppData }) {
         <p className="text-sm text-slate-500">{t('rev.noMoves')}</p>
       )}
 
+      {game.myClocks && game.myClocks.length > 2 && <TimeChart clocks={game.myClocks} timeControl={game.timeControl} mistakes={data.positions.filter((p) => p.gameId === game.id).map((p) => Math.floor(p.ply / 2))} />}
+
       <Card className="flex flex-col gap-3">
         <p className="text-sm text-slate-500">💭 {t('rev.questions')}</p>
         <div>
@@ -216,5 +219,39 @@ export default function GameReview({ data }: { data: AppData }) {
         )}
       </Card>
     </div>
+  )
+}
+
+/** Seconds you spent on each of your moves (from the clock data), with mistakes in red. */
+function TimeChart({ clocks, timeControl, mistakes }: { clocks: number[]; timeControl?: string; mistakes: number[] }) {
+  const t = useT()
+  const base = Number(timeControl?.split('+')[0]) || clocks[0]
+  const inc = Number(timeControl?.split('+')[1]) || 0
+  const rows = clocks.map((c, i) => ({
+    move: i + 1,
+    seconds: Math.max(0, Math.round((i === 0 ? base : clocks[i - 1]) + inc - c)),
+    mistake: mistakes.includes(i),
+  }))
+  const longest = rows.reduce((a, b) => (b.seconds > a.seconds ? b : a))
+  return (
+    <Card className="flex flex-col gap-1 text-sm">
+      <div className="font-semibold">⏱️ {t('time.title')}</div>
+      <div className="h-32">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} margin={{ top: 5, right: 4, left: -26, bottom: 0 }}>
+            <XAxis dataKey="move" tick={{ fontSize: 9 }} interval={4} />
+            <YAxis tick={{ fontSize: 9 }} />
+            <Tooltip />
+            <Bar dataKey="seconds" isAnimationActive={false}>
+              {rows.map((r) => (
+                <Cell key={r.move} fill={r.mistake ? '#dc2626' : '#16a34a'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-xs text-slate-500">{t('time.longest', { n: longest.move, s: longest.seconds })}</p>
+      <p className="text-xs text-slate-400">{t('time.note')}</p>
+    </Card>
   )
 }

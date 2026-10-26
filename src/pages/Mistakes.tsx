@@ -79,7 +79,7 @@ export function MistakesHome({ data }: { data: AppData }) {
 function PositionRow({ pos, data }: { pos: MistakePosition; data: AppData }) {
   const t = useT()
   const lang = useLang()
-  const game = data.games.find((g) => g.id === pos.gameId)
+  const game = data.allGames.find((g) => g.id === pos.gameId)
   return (
     <Link to={`/train/mistakes/${pos.id}`}>
       <Card className="flex items-center gap-3 p-3 text-sm">
@@ -109,7 +109,7 @@ export function MistakeTrainer({ data }: { data: AppData }) {
   const navigate = useNavigate()
   const { id } = useParams()
   const pos = data.positions.find((p) => p.id === id)
-  const game = pos ? data.games.find((g) => g.id === pos.gameId) : undefined
+  const game = pos ? data.allGames.find((g) => g.id === pos.gameId) : undefined
 
   const [stage, setStage] = useState<Stage>('solve')
   const [fen, setFen] = useState(pos?.fen ?? '')

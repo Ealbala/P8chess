@@ -12,6 +12,9 @@ const NAMES: Record<Lang, Record<PieceSymbol, string>> = {
 const TXT = {
   es: {
     opp: (san: string) => `Tu rival acaba de jugar ${san}.`,
+    yours: (san: string) => `Jugaste ${san} en tu partida.`,
+    oppGain: (n: number) => `Resultado: tu rival gana material (+${n}).`,
+    oppMate: 'Resultado: tu rival da jaque mate.',
     mate: '¡Jaque mate!',
     check: 'Jaque.',
     doubleCheck: '¡Jaque doble! El rey tiene que moverse.',
@@ -32,6 +35,9 @@ const TXT = {
   },
   en: {
     opp: (san: string) => `Your opponent has just played ${san}.`,
+    yours: (san: string) => `You played ${san} in your game.`,
+    oppGain: (n: number) => `Result: your opponent wins material (+${n}).`,
+    oppMate: 'Result: your opponent delivers checkmate.',
     mate: 'Checkmate!',
     check: 'Check.',
     doubleCheck: 'Double check! The king must move.',
@@ -114,7 +120,14 @@ function list(lang: Lang, items: string[]) {
  * Explains a puzzle line. `fen` is the position before moves[0] (the opponent's setup move,
  * Lichess format); the solver is the side to move after it.
  */
-export function explainLine(fen: string, moves: string[], lang: Lang): { steps: ExplainStep[]; summary: string } {
+export function explainLine(
+  fen: string,
+  moves: string[],
+  lang: Lang,
+  /** 'opponent' (default): moves[0] is the opponent's setup move and you solve.
+   *  'threat': moves[0] is YOUR move from a game and the line shows how the opponent punishes it. */
+  perspective: 'opponent' | 'threat' = 'opponent',
+): { steps: ExplainStep[]; summary: string } {
   const tx = TXT[lang]
   const names = NAMES[lang]
   const c = new Chess(fen)
@@ -138,7 +151,7 @@ export function explainLine(fen: string, moves: string[], lang: Lang): { steps: 
     if (i === 0) {
       solver = c.turn()
       startBalance = material(c, solver) - material(c, solver === 'w' ? 'b' : 'w')
-      texts.push(tx.opp(m.san))
+      texts.push(perspective === 'threat' ? tx.yours(m.san) : tx.opp(m.san))
     } else {
       const mine = mover === solver
       if (c.isCheckmate()) texts.push(tx.mate)
@@ -197,7 +210,11 @@ export function explainLine(fen: string, moves: string[], lang: Lang): { steps: 
   })
 
   const balance = material(c, solver) - material(c, solver === 'w' ? 'b' : 'w')
-  const summary = c.isCheckmate() ? tx.sumMate : balance - startBalance > 0 ? tx.sumGain(balance - startBalance) : tx.sumEqual
+  const gain = balance - startBalance
+  const summary =
+    perspective === 'threat'
+      ? c.isCheckmate() ? tx.oppMate : gain > 0 ? tx.oppGain(gain) : tx.sumEqual
+      : c.isCheckmate() ? tx.sumMate : gain > 0 ? tx.sumGain(gain) : tx.sumEqual
   return { steps, summary }
 }
 

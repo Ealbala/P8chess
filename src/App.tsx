@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { useData } from './lib/data'
 import { autoSync } from './lib/sync'
+import { autoBackup } from './lib/cloud'
 import { runAnalysis } from './lib/analysisRunner'
 import { todaysPlan } from './lib/plan'
 import { dayKey } from './lib/dates'
@@ -32,12 +33,17 @@ export default function App() {
   }, [theme])
 
   const username = data?.settings?.chessComUsername
+  const appPassword = data?.settings?.coachPassword
   useEffect(() => {
     if (username) autoSync(username)
   }, [username])
+  // Daily cloud backup (only when the app password is set and storage exists).
+  useEffect(() => {
+    if (appPassword) autoBackup(appPassword)
+  }, [appPassword])
 
   // Analyse new games with Stockfish in the background (no-op when nothing is pending).
-  const gameCount = data?.games.length ?? 0
+  const gameCount = data?.allGames.length ?? 0
   const settingsForAnalysis = data?.settings
   useEffect(() => {
     if (settingsForAnalysis && gameCount) runAnalysis(settingsForAnalysis)

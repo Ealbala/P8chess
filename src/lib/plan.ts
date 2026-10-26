@@ -21,20 +21,27 @@ export interface PlanItem {
 type Row = Record<Exclude<Activity, 'review'>, number>
 
 const TABLE: Record<number, Row> = {
-  10: { mistakes: 2, openings: 1, tactics: 4, calculation: 0, middlegame: 0, endgame: 0, blindfold: 1 },
-  20: { mistakes: 3, openings: 2, tactics: 4, calculation: 1, middlegame: 2, endgame: 2, blindfold: 2 },
-  30: { mistakes: 4, openings: 3, tactics: 5, calculation: 2, middlegame: 3, endgame: 3, blindfold: 3 },
-  45: { mistakes: 5, openings: 4, tactics: 7, calculation: 3, middlegame: 4, endgame: 4, blindfold: 4 },
-  60: { mistakes: 6, openings: 5, tactics: 9, calculation: 4, middlegame: 5, endgame: 5, blindfold: 5 },
+  10: { threats: 1, mistakes: 2, openings: 1, tactics: 4, calculation: 0, middlegame: 0, endgame: 0, blindfold: 1 },
+  20: { threats: 2, mistakes: 3, openings: 2, tactics: 4, calculation: 1, middlegame: 2, endgame: 2, blindfold: 2 },
+  30: { threats: 2, mistakes: 4, openings: 3, tactics: 5, calculation: 2, middlegame: 3, endgame: 3, blindfold: 3 },
+  45: { threats: 3, mistakes: 5, openings: 4, tactics: 7, calculation: 3, middlegame: 4, endgame: 4, blindfold: 4 },
+  60: { threats: 3, mistakes: 6, openings: 5, tactics: 9, calculation: 4, middlegame: 5, endgame: 5, blindfold: 5 },
 }
 
 /**
  * @param mistakesAvailable positions from your games you can practise today; the
  *   "your mistakes" item is capped by it (and left out when there are none yet).
  */
-export function buildPlan(minutes: number, hasUnreviewedGame: boolean, weakest?: Area, mistakesAvailable = 0): PlanItem[] {
+export function buildPlan(
+  minutes: number,
+  hasUnreviewedGame: boolean,
+  weakest?: Area,
+  mistakesAvailable = 0,
+  threatsAvailable = 0,
+): PlanItem[] {
   const row = { ...(TABLE[minutes] ?? TABLE[20]) }
   row.mistakes = Math.min(row.mistakes, mistakesAvailable)
+  row.threats = Math.min(row.threats, threatsAvailable)
   const items: PlanItem[] = []
   for (const k of Object.keys(row) as (keyof Row)[]) {
     const boosted = k === weakest
@@ -42,7 +49,7 @@ export function buildPlan(minutes: number, hasUnreviewedGame: boolean, weakest?:
     if (target > 0) items.push({ activity: k, target, boosted })
   }
   // Your own mistakes first, then the weakest area.
-  const rank = (i: PlanItem) => (i.activity === 'mistakes' ? 2 : i.boosted ? 1 : 0)
+  const rank = (i: PlanItem) => (i.activity === 'mistakes' ? 3 : i.activity === 'threats' ? 2 : i.boosted ? 1 : 0)
   items.sort((a, b) => rank(b) - rank(a))
   if (hasUnreviewedGame) items.unshift({ activity: 'review', target: 1 })
   return items
@@ -67,7 +74,9 @@ export function planProgress(
     case 'openings':
       return data.lineAttempts.filter((a) => a.day === day && (a.mode === 'learn' || (a.solved ?? a.correct))).length
     case 'mistakes':
-      return new Set(data.positionAttempts.filter((a) => a.day === day && (a.solved ?? a.correct)).map((a) => a.posId)).size
+      return new Set(data.positionAttempts.filter((a) => a.day === day && !a.kind && (a.solved ?? a.correct)).map((a) => a.posId)).size
+    case 'threats':
+      return new Set(data.positionAttempts.filter((a) => a.day === day && a.kind === 'threat' && (a.solved ?? a.correct)).map((a) => a.posId)).size
     default:
       return data.attempts.filter((a) => a.day === day && a.cat === item.activity && (a.solved ?? a.correct)).length
   }
@@ -88,9 +97,11 @@ export function todaysPlan(data: {
   const reviewedToday = data.games.some((g) => g.reviewedAt && dayKey(new Date(g.reviewedAt)) === today)
   const unreviewed = data.games.some((g) => needsReview(g, data.settings))
   const weakest = weakestArea(data)?.area
-  const doneToday = new Set(data.positionAttempts.filter((a) => a.day === today).map((a) => a.posId)).size
+  const doneToday = new Set(data.positionAttempts.filter((a) => a.day === today && !a.kind).map((a) => a.posId)).size
   const available = duePositions(data.positions, today).length + doneToday
-  return buildPlan(data.settings.dailyMinutes, unreviewed || reviewedToday, weakest, available).map((item) => {
+  const threatsToday = new Set(data.positionAttempts.filter((a) => a.day === today && a.kind === 'threat').map((a) => a.posId)).size
+  const threatsAvailable = data.positions.filter((p) => p.threatDue === undefined || p.threatDue <= today).length + threatsToday
+  return buildPlan(data.settings.dailyMinutes, unreviewed || reviewedToday, weakest, available, threatsAvailable).map((item) => {
     const done = planProgress(item, data, today)
     return { ...item, done, complete: done >= item.target }
   })

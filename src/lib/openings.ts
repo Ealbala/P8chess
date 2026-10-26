@@ -57,7 +57,7 @@ export function drillAccuracy(attempts: LineAttempt[], n = 30) {
 // ---------- Repertoire vs. your games ----------
 
 /** Position key without move counters or en passant, so transpositions match. */
-const posKey = (fen: string) => fen.split(' ').slice(0, 3).join(' ')
+export const posKey = (fen: string) => fen.split(' ').slice(0, 3).join(' ')
 
 /** Map position → moves your repertoire plays (or expects) from there. */
 export function buildTree(openings: Opening[]): Map<string, Set<string>> {

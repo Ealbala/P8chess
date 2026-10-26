@@ -14,7 +14,7 @@ import {
 import { db } from '../lib/db'
 import { Card, ProgressBar, SectionTitle, Segmented, Stat } from '../components/ui'
 
-export const ACT_ICON = { mistakes: '🎯', openings: '📖', tactics: '⚔️', calculation: '🧠', middlegame: '🏰', endgame: '🏁', blindfold: '🙈', review: '🔍' } as const
+export const ACT_ICON = { mistakes: '🎯', threats: '🚨', openings: '📖', tactics: '⚔️', calculation: '🧠', middlegame: '🏰', endgame: '🏁', blindfold: '🙈', review: '🔍' } as const
 
 export default function Dashboard({ data }: { data: AppData }) {
   const t = useT()

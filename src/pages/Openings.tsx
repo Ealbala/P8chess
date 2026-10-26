@@ -58,6 +58,10 @@ export function OpeningsHome({ data }: { data: AppData }) {
         )}
       </Card>
 
+      <Link to="/train/explorer" className="rounded-xl bg-slate-100 p-3 text-center text-sm font-semibold dark:bg-slate-800">
+        🔭 {t('xp.title')}
+      </Link>
+
       <section>
         <SectionTitle>{t('op.mine')}</SectionTitle>
         <div className="flex flex-col gap-2">
