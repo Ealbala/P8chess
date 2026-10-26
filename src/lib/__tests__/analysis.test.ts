@@ -77,7 +77,8 @@ describe('only what is done well counts', () => {
     const data = { attempts: [a(true, true), a(false, true), a(false, false), a(true)], drills: [], games: [], lineAttempts: [], positionAttempts: [] }
     expect(planProgress({ activity: 'tactics', target: 5 }, data, day)).toBe(3)
     expect(drillPassed({ day, date: '', kind: 'moves', correct: 7, total: 10, seconds: 60 })).toBe(true)
-    expect(drillPassed({ day, date: '', kind: 'moves', correct: 6, total: 10, seconds: 60 })).toBe(false)
-    expect(drillPassed({ day, date: '', kind: 'blind-game', correct: 0, total: 2, seconds: 0 })).toBe(false)
+    // Blindfold: every finished round or game counts, mistakes included.
+    expect(drillPassed({ day, date: '', kind: 'moves', correct: 3, total: 10, seconds: 60 })).toBe(true)
+    expect(drillPassed({ day, date: '', kind: 'blind-game', correct: 0, total: 2, seconds: 0 })).toBe(true)
   })
 })

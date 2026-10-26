@@ -514,6 +514,8 @@ export function Rush({ data }: { data: AppData }) {
   const t = useT()
   const lang = useLang()
   const navigate = useNavigate()
+  const dataRef = useRef(data)
+  dataRef.current = data
   const [params] = useSearchParams()
   const mode = (params.get('mode') as RushResult['mode']) ?? '3min'
   const trackId = params.get('track') ?? 'all'
@@ -562,7 +564,7 @@ export function Rush({ data }: { data: AppData }) {
 
   async function next() {
     const all = await loadPuzzles()
-    const p = pickForTracks(all, tracks, level.current, seen.current, [], 80)
+    const p = pickForTracks(all, tracks, level.current, seen.current, dataRef.current.attempts, 80)
     if (!p) return end()
     seen.current.add(p.id)
     setPuzzle(p)

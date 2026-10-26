@@ -3,7 +3,7 @@
 // and only what you did WELL counts:
 //  - puzzles / your mistakes: solved without showing the solution (retries are fine)
 //  - opening lines: learned, or reviewed without asking for the arrow
-//  - blindfold: rounds with at least 70% correct, or a blindfold game not lost
+//  - blindfold: every finished round or blindfold game, mistakes included
 //  - review: a game reviewed
 // Your weakest area (see areas.ts) gets 50% more items.
 import type { Activity, DrillSession, Game, LineAttempt, LineProgress, MistakePosition, PositionAttempt, PuzzleAttempt, Settings } from './db'
@@ -55,10 +55,9 @@ export function buildPlan(
   return items
 }
 
-/** A blindfold round counts with ≥ 70% correct; a blindfold game counts if not lost. */
+/** Every finished blindfold round or game counts, even with mistakes (it's the effort that trains). */
 export function drillPassed(d: DrillSession): boolean {
-  if (d.kind === 'blind-game') return d.correct >= 1
-  return d.total > 0 && d.correct / d.total >= 0.7
+  return d.total > 0
 }
 
 export function planProgress(
