@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { useData } from './lib/data'
 import { autoSync } from './lib/sync'
 import { autoBackup } from './lib/cloud'
+import { syncCoach } from './lib/coachInbox'
 import { runAnalysis } from './lib/analysisRunner'
 import { todaysPlan } from './lib/plan'
 import { dayKey } from './lib/dates'
@@ -41,6 +42,21 @@ export default function App() {
   useEffect(() => {
     if (appPassword) autoBackup(appPassword)
   }, [appPassword])
+  // Link with Claude (MCP): fetch what it sent and refresh the data it reads — on open and
+  // whenever the app comes back to the foreground (e.g. after chatting in Claude).
+  const dataRef = useRef(data)
+  dataRef.current = data
+  const loaded = !!data?.settings
+  useEffect(() => {
+    if (!appPassword || !loaded) return
+    const sync = () => {
+      const d = dataRef.current
+      if (document.visibilityState === 'visible' && d?.settings) syncCoach({ ...d, settings: d.settings }, appPassword)
+    }
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
+  }, [appPassword, loaded])
 
   // Analyse new games with Stockfish in the background (no-op when nothing is pending).
   const gameCount = data?.allGames.length ?? 0

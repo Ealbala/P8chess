@@ -1,7 +1,10 @@
 // Remote MCP server (Streamable HTTP, stateless, JSON responses) so Claude — on your own
 // Claude subscription, at no API cost — can read your public Chess.com data.
 // Add it in Claude: Settings → Connectors → Add custom connector → https://<your-app>/api/mcp
-// Read-only, public data only. No engine here: Claude must not invent evaluations.
+// Public tools read Chess.com only. With ?key=<app password> in the URL, Claude can also read
+// the app's own data (Stockfish findings, section ratings) and send messages, assigned
+// training and goals back to the app. No engine here: Claude must not invent evaluations.
+import { contextPath, inboxPath, passwordOk, readJson, storageReady, writeJson, type InboxItem } from './_store'
 
 const SERVER = { name: 'pocho-chess', version: '1.0.0' }
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
@@ -13,6 +16,15 @@ Use these tools to coach the user with facts from his real games. The data has n
 evaluations: when you assess moves, say it is your own reading of the position, keep claims
 concrete and checkable, and never invent moves that were not played. For engine-verified
 mistakes, the user can paste the summary exported from the Pocho Chess app.`
+
+const APP_INSTRUCTIONS = `
+App tools are enabled. get_app_training_data has the app's engine-verified data (Stockfish mistakes,
+section ratings, weak themes, plan). Prefer it over guessing. You can send things to the app:
+send_coach_message (advice, reports), assign_training (a timed session in one section) and
+set_training_goal. Send them when the user asks or when it clearly helps; tell the user what you sent.
+Write messages in the user's language (Spanish unless he writes in English).`
+
+const TRACK_IDS = ['openings', 'middlegame', 'endgame', 'calculation', 'forks', 'pins', 'discovered', 'mates', 'sacrifices', 'attack', 'defense', 'hanging', 'pawns', 'rook-endgames', 'minor-endgames', 'queen-endgames']
 
 type Json = Record<string, unknown>
 
@@ -51,6 +63,56 @@ const TOOLS = [
         time_class: { type: 'string', enum: ['rapid', 'blitz', 'bullet'] },
         months: { type: 'integer', minimum: 1, maximum: 6 },
       },
+      additionalProperties: false,
+    },
+  },
+]
+
+const APP_TOOLS = [
+  {
+    name: 'get_app_training_data',
+    description:
+      "Pocho Chess app data uploaded from the user's phone: engine-verified (Stockfish) mistakes with best lines, mistakes per phase, section (track) ratings, weakest puzzle themes, training minutes, repertoire coverage, results and the messages you already sent.",
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'send_coach_message',
+    description: 'Send a coach message to the app (advice, a weekly report, a game analysis). Shown in the app until he dismisses it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Short title (max 80 chars)' },
+        text: { type: 'string', description: 'The message (plain text, max 4000 chars)' },
+      },
+      required: ['title', 'text'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'assign_training',
+    description: 'Assign a timed training session in one section of the app. The app shows a button that starts it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        track: { type: 'string', enum: TRACK_IDS, description: 'Training section' },
+        minutes: { type: 'integer', minimum: 5, maximum: 120 },
+        note: { type: 'string', description: 'Why this session (max 500 chars)' },
+      },
+      required: ['track', 'minutes'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'set_training_goal',
+    description: "Propose a goal: raise a section's rating by N points. The user accepts it in the app.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        track: { type: 'string', enum: TRACK_IDS },
+        plus: { type: 'integer', minimum: 25, maximum: 400, description: 'Rating points to gain' },
+        note: { type: 'string', description: 'Why (max 500 chars)' },
+      },
+      required: ['track', 'plus'],
       additionalProperties: false,
     },
   },
@@ -103,6 +165,42 @@ async function recentArchives(user: string, months: number) {
     games.push(...g.reverse())
   }
   return games.filter((g) => g.rules === 'chess')
+}
+
+const clip = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n)
+
+async function addToInbox(item: Omit<InboxItem, 'id' | 'createdAt'>) {
+  const path = inboxPath(process.env.COACH_PASSWORD!)
+  const items = (await readJson<InboxItem[]>(path)) ?? []
+  const full: InboxItem = { ...item, id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, createdAt: new Date().toISOString() }
+  await writeJson(path, [...items, full].slice(-50))
+  return { sent: true, id: full.id, note: 'It appears in the Pocho Chess app next time it is opened.' }
+}
+
+async function callAppTool(name: string, args: Json): Promise<unknown> {
+  const pw = process.env.COACH_PASSWORD!
+  if (name === 'get_app_training_data') {
+    const ctx = await readJson<{ updatedAt: string; context: unknown }>(contextPath(pw))
+    const sent = ((await readJson<InboxItem[]>(inboxPath(pw))) ?? []).slice(-10)
+    if (!ctx) return { error: 'No data uploaded yet. Ask the user to open the Pocho Chess app (with the app password set in Settings).' }
+    return { uploadedAt: ctx.updatedAt, data: ctx.context, messagesYouSentRecently: sent }
+  }
+  const track = clip(args.track, 40)
+  if ((name === 'assign_training' || name === 'set_training_goal') && !TRACK_IDS.includes(track)) throw new Error(`Unknown track: ${track}`)
+  if (name === 'send_coach_message') {
+    const text = clip(args.text, 4000)
+    if (!text) throw new Error('Empty message')
+    return addToInbox({ type: 'message', title: clip(args.title, 80) || 'Coach', text })
+  }
+  if (name === 'assign_training') {
+    const minutes = Math.min(120, Math.max(5, Math.round(Number(args.minutes) || 30)))
+    return addToInbox({ type: 'assignment', title: track, text: clip(args.note, 500), track, minutes })
+  }
+  if (name === 'set_training_goal') {
+    const plus = Math.min(400, Math.max(25, Math.round(Number(args.plus) || 100)))
+    return addToInbox({ type: 'goal', title: track, text: clip(args.note, 500), track, plus })
+  }
+  throw new Error(`Unknown tool: ${name}`)
 }
 
 async function callTool(name: string, args: Json): Promise<unknown> {
@@ -160,7 +258,8 @@ interface RpcRequest {
   params?: Json
 }
 
-export async function handleRpc(msg: RpcRequest): Promise<Json | null> {
+/** `app` = the request carried the app password, so the app tools are available. */
+export async function handleRpc(msg: RpcRequest, app = false): Promise<Json | null> {
   const reply = (result: unknown) => ({ jsonrpc: '2.0', id: msg.id, result })
   const fail = (code: number, message: string) => ({ jsonrpc: '2.0', id: msg.id ?? null, error: { code, message } })
   if (msg.id === undefined) return null // notification (e.g. notifications/initialized)
@@ -171,18 +270,20 @@ export async function handleRpc(msg: RpcRequest): Promise<Json | null> {
         protocolVersion: PROTOCOL_VERSIONS.includes(requested) ? requested : PROTOCOL_VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER,
-        instructions: INSTRUCTIONS,
+        instructions: app ? INSTRUCTIONS + APP_INSTRUCTIONS : INSTRUCTIONS,
       })
     }
     case 'ping':
       return reply({})
     case 'tools/list':
-      return reply({ tools: TOOLS })
+      return reply({ tools: app ? [...TOOLS, ...APP_TOOLS] : TOOLS })
     case 'tools/call': {
       const name = String(msg.params?.name ?? '')
-      if (!TOOLS.some((t) => t.name === name)) return fail(-32602, `Unknown tool: ${name}`)
+      const isApp = app && APP_TOOLS.some((t) => t.name === name)
+      if (!isApp && !TOOLS.some((t) => t.name === name)) return fail(-32602, `Unknown tool: ${name}`)
       try {
-        const data = await callTool(name, (msg.params?.arguments as Json) ?? {})
+        const args = (msg.params?.arguments as Json) ?? {}
+        const data = isApp ? await callAppTool(name, args) : await callTool(name, args)
         return reply({ content: [{ type: 'text', text: JSON.stringify(data) }] })
       } catch (e) {
         return reply({ content: [{ type: 'text', text: String(e instanceof Error ? e.message : e) }], isError: true })
@@ -217,7 +318,8 @@ export async function POST(request: Request) {
   }
   const batch = Array.isArray(body)
   const messages: RpcRequest[] = Array.isArray(body) ? body : [body]
-  const results = (await Promise.all(messages.map(handleRpc))).filter((r) => r !== null)
+  const app = storageReady() && passwordOk(new URL(request.url).searchParams.get('key'))
+  const results = (await Promise.all(messages.map((m) => handleRpc(m, app)))).filter((r) => r !== null)
   if (!results.length) return new Response(null, { status: 202, headers: CORS })
   return Response.json(batch ? results : results[0], { headers: CORS })
 }

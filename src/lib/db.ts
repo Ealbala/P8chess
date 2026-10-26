@@ -75,6 +75,20 @@ export interface TrainingGoal {
   achievedAt?: string
 }
 
+/** Something Claude (via MCP) sent to the app: a message, an assigned session or a goal. */
+export interface CoachItem {
+  id: string
+  type: 'message' | 'assignment' | 'goal'
+  title: string
+  text: string
+  track?: string
+  minutes?: number
+  plus?: number
+  createdAt: string
+  /** Dismissed or acted on. */
+  done?: boolean
+}
+
 export interface CoachReport {
   id: string // week start, YYYY-MM-DD
   text: string
@@ -236,6 +250,7 @@ export interface Meta {
 
 export const db = new Dexie('my-chess-coach') as Dexie & {
   exams: EntityTable<Exam, 'id'>
+  coachItems: EntityTable<CoachItem, 'id'>
   sessions: EntityTable<TrainingSession, 'id'>
   rushes: EntityTable<RushResult, 'id'>
   goals: EntityTable<TrainingGoal, 'id'>
@@ -290,6 +305,10 @@ db.version(6).stores({
 db.version(7).stores({
   exams: 'id',
 })
+// v8: what Claude sends to the app through MCP.
+db.version(8).stores({
+  coachItems: 'id, createdAt',
+})
 
 export const defaultSettings = (): Settings => ({
   id: 'main',
@@ -325,6 +344,7 @@ export async function exportData(): Promise<string> {
     rushes: await db.rushes.toArray(),
     goals: await db.goals.toArray(),
     exams: await db.exams.toArray(),
+    coachItems: await db.coachItems.toArray(),
   }
   return JSON.stringify(data)
 }
@@ -335,7 +355,7 @@ export async function importData(json: string) {
   const tables = [
     db.settings, db.ratings, db.games, db.attempts, db.drills, db.meta,
     db.lineProgress, db.lineAttempts, db.positions, db.positionAttempts, db.daysDone, db.reports,
-    db.sessions, db.rushes, db.goals, db.exams,
+    db.sessions, db.rushes, db.goals, db.exams, db.coachItems,
   ]
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))
@@ -349,6 +369,7 @@ export async function importData(json: string) {
     await db.rushes.bulkAdd(data.rushes ?? [])
     await db.goals.bulkAdd(data.goals ?? [])
     await db.exams.bulkAdd(data.exams ?? [])
+    await db.coachItems.bulkAdd(data.coachItems ?? [])
     await db.settings.bulkAdd(data.settings ?? [])
     await db.ratings.bulkAdd(data.ratings ?? [])
     await db.games.bulkAdd(data.games ?? [])

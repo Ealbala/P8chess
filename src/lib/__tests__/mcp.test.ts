@@ -15,6 +15,33 @@ describe('api/mcp (MCP server)', () => {
     expect(await handleRpc({ jsonrpc: '2.0', id: 3, method: 'foo' })).toMatchObject({ error: { code: -32601 } })
   })
 
+  it('exposes the app tools only with the app password', async () => {
+    const names = async (url: string) => {
+      const res = await POST(new Request(url, { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) }))
+      return ((await res.json()) as { result: { tools: { name: string }[] } }).result.tools.map((t) => t.name)
+    }
+    process.env.COACH_PASSWORD = 'secret'
+    process.env.BLOB_READ_WRITE_TOKEN = 'x'
+    try {
+      expect(await names('https://x/api/mcp')).not.toContain('send_coach_message')
+      expect(await names('https://x/api/mcp?key=wrong')).not.toContain('send_coach_message')
+      expect(await names('https://x/api/mcp?key=secret')).toEqual(
+        expect.arrayContaining(['get_app_training_data', 'send_coach_message', 'assign_training', 'set_training_goal']),
+      )
+      const call = (await handleRpc(
+        { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'assign_training', arguments: { track: 'nope', minutes: 30 } } },
+        true,
+      )) as { result: { isError?: boolean } }
+      expect(call.result.isError).toBe(true)
+      expect(await handleRpc({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'assign_training', arguments: {} } })).toMatchObject({
+        error: { code: -32602 },
+      })
+    } finally {
+      delete process.env.COACH_PASSWORD
+      delete process.env.BLOB_READ_WRITE_TOKEN
+    }
+  })
+
   it('strips clocks and numbers from PGN moves', () => {
     expect(movesFromPgn('[Event "x"]\n\n1. e4 {[%clk 0:09:58]} 1... e5 {[%clk 0:09:50]} 2. Nf3 1-0')).toBe('1. e4 e5 2. Nf3 1-0')
   })

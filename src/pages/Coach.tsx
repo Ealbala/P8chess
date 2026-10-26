@@ -9,6 +9,7 @@ import { dayKey, weekStart } from '../lib/dates'
 import { askCoach, coachStatus, type CoachError, type CoachMessage } from '../lib/coach'
 import { useT, type TKey } from '../lib/i18n'
 import { Button, Card, inputClass } from '../components/ui'
+import CoachInbox from '../components/CoachInbox'
 
 const QUICK: TKey[] = ['coach.q.weakness', 'coach.q.today', 'coach.q.losing', 'coach.q.month', 'coach.q.calc', 'coach.q.think']
 
@@ -216,14 +217,15 @@ function FreeCoach({ data, initialQuestion }: { data: AppData; initialQuestion?:
   )
 }
 
-function McpCard() {
+function McpCard({ password }: { password?: string }) {
   const t = useT()
-  const url = `${location.origin}/api/mcp`
+  const url = `${location.origin}/api/mcp${password ? `?key=${encodeURIComponent(password)}` : ''}`
   const [copied, setCopied] = useState(false)
   return (
     <Card className="flex flex-col gap-2 text-sm">
       <div className="font-bold">🔌 {t('coach.mcpTitle')}</div>
       <p className="text-slate-500">{t('coach.mcpIntro')}</p>
+      <p className={password ? 'font-semibold text-green-700 dark:text-green-400' : 'text-amber-700'}>{password ? t('coach.mcpKey') : t('coach.mcpNoKey')}</p>
       <div className="flex gap-2">
         <input readOnly className={`${inputClass} font-mono text-xs`} value={url} onFocus={(e) => e.target.select()} />
         <Button
@@ -238,6 +240,7 @@ function McpCard() {
         <li>{t('coach.mcp2')}</li>
         <li>{t('coach.mcp3')}</li>
       </ol>
+      {password && <p className="text-xs text-amber-700">🔒 {t('coach.mcpKeyWarn')}</p>}
       <p className="text-xs text-slate-400">{t('coach.mcpNote')}</p>
     </Card>
   )
@@ -256,8 +259,9 @@ export default function Coach({ data }: { data: AppData }) {
   return (
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-2xl font-bold">🤖 {t('coach.title')}</h1>
+      <CoachInbox data={data} full />
       <FreeCoach data={data} initialQuestion={initialQuestion} />
-      <McpCard />
+      <McpCard password={data.settings.coachPassword} />
       <ApiChat data={data} />
     </div>
   )

@@ -13,6 +13,7 @@ import {
 } from '../lib/stats'
 import { db } from '../lib/db'
 import { Card, ProgressBar, SectionTitle, Segmented, Stat } from '../components/ui'
+import CoachInbox from '../components/CoachInbox'
 
 export const ACT_ICON = { mistakes: '🎯', threats: '🚨', openings: '📖', tactics: '⚔️', calculation: '🧠', middlegame: '🏰', endgame: '🏁', blindfold: '🙈', review: '🔍' } as const
 
@@ -99,6 +100,7 @@ export default function Dashboard({ data }: { data: AppData }) {
         </Banner>
       )}
       {lossStreak >= 2 && <Banner icon="🧊">{t('tilt.text', { n: lossStreak })}</Banner>}
+      <CoachInbox data={data} />
 
       {toReview.length > 0 ? (
         <Card className="flex flex-col gap-2 ring-2 ring-amber-400">
