@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Chess } from 'chess.js'
 import Board from '../components/Board'
+import DrillBar from '../components/DrillBar'
 import { Button, Card, ProgressBar, Segmented, inputClass } from '../components/ui'
 import type { AppData } from '../lib/data'
 import { db, type DrillSession } from '../lib/db'
@@ -152,13 +153,23 @@ export function MovesDrill() {
           )}
         </>
       ) : (
-        <RoundDone score={score} onAgain={() => (setScore({ c: 0, t: 0 }), setQ(moveQuestion()), setFeedback(null), setRetrying(null))} />
+        <RoundDone score={score} kind="moves" onAgain={() => (setScore({ c: 0, t: 0 }), setQ(moveQuestion()), setFeedback(null), setRetrying(null))} />
       )}
     </div>
   )
 }
 
-function RoundDone({ score, onAgain, children }: { score: { c: number; t: number }; onAgain: () => void; children?: ReactNode }) {
+function RoundDone({
+  score,
+  kind,
+  onAgain,
+  children,
+}: {
+  score: { c: number; t: number }
+  kind: DrillSession['kind']
+  onAgain: () => void
+  children?: ReactNode
+}) {
   const t = useT()
   return (
     <Card className="flex flex-col items-center gap-3 py-6">
@@ -166,6 +177,7 @@ function RoundDone({ score, onAgain, children }: { score: { c: number; t: number
       <div className="text-4xl font-extrabold">
         {score.c}/{score.t}
       </div>
+      <DrillBar kind={kind} finished />
       {children}
       <Button onClick={onAgain}>{t('coords.again')}</Button>
     </Card>
@@ -267,7 +279,7 @@ export function MemoryDrill() {
         </>
       )}
       {stage === 'done' && (
-        <RoundDone score={{ c: results.filter((r) => r.ok).length, t: results.length }} onAgain={() => setStage('ready')}>
+        <RoundDone score={{ c: results.filter((r) => r.ok).length, t: results.length }} kind="memory" onAgain={() => setStage('ready')}>
           <Board
             fen={fen}
             interactive={false}
@@ -356,7 +368,7 @@ export function CalcDrill() {
         </>
       )}
       {stage === 'done' && (
-        <RoundDone score={{ c: results.filter((r) => r.ok).length, t: results.length }} onAgain={() => setStage('ready')}>
+        <RoundDone score={{ c: results.filter((r) => r.ok).length, t: results.length }} kind="calc" onAgain={() => setStage('ready')}>
           <p className="font-mono text-sm">{text}</p>
           <Board
             fen={final.fen()}

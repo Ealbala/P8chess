@@ -71,14 +71,20 @@ describe('challenges and plan', () => {
 
 describe('only what is done well counts', () => {
   it('counts solved puzzles (retries ok), not failed ones or shown solutions', async () => {
-    const { planProgress, drillPassed } = await import('../plan')
+    const { planProgress, drillPassed, drillRequired } = await import('../plan')
     const day = '2026-10-25'
     const a = (correct: boolean, solved?: boolean) => ({ puzzleId: 'x', date: '', day, cat: 'tactics' as const, correct, solved, rating: 1500, themes: [], seconds: 10 })
     const data = { attempts: [a(true, true), a(false, true), a(false, false), a(true)], drills: [], games: [], lineAttempts: [], positionAttempts: [] }
     expect(planProgress({ activity: 'tactics', target: 5 }, data, day)).toBe(3)
-    expect(drillPassed({ day, date: '', kind: 'moves', correct: 7, total: 10, seconds: 60 })).toBe(true)
-    // Blindfold: every finished round or game counts, mistakes included.
-    expect(drillPassed({ day, date: '', kind: 'moves', correct: 3, total: 10, seconds: 60 })).toBe(true)
-    expect(drillPassed({ day, date: '', kind: 'blind-game', correct: 0, total: 2, seconds: 0 })).toBe(true)
+    // Blindfold: the bar starts at 0% and rises 5% per round already done, up to 70%.
+    const r = (date: string, correct: number, kind: 'moves' | 'blind-game' = 'moves') => ({ day, date, kind, correct, total: 10, seconds: 60 })
+    expect(drillPassed(r('1', 0), [r('1', 0)])).toBe(true)
+    const many = Array.from({ length: 20 }, (_, i) => r(String(i).padStart(2, '0'), 7))
+    expect(drillRequired('moves', many)).toBe(0.7)
+    expect(drillPassed(r('99', 7), many)).toBe(true)
+    expect(drillPassed(r('99', 6), many)).toBe(false)
+    expect(drillPassed(r('03', 2), many)).toBe(true) // 4th round: needs 15%
+    expect(drillPassed(r('03', 1), many)).toBe(false)
+    expect(drillPassed(r('03', 0, 'blind-game'), [])).toBe(true)
   })
 })

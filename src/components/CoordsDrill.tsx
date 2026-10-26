@@ -10,6 +10,7 @@ import { dayKey } from '../lib/dates'
 import { useT } from '../lib/i18n'
 import { todaysPlan } from '../lib/plan'
 import Board from './Board'
+import DrillBar from './DrillBar'
 import { Button, Card, Segmented } from './ui'
 
 const FILES = 'abcdefgh'
@@ -118,6 +119,7 @@ export default function CoordsDrill({ data }: { data: AppData }) {
               <div className="text-2xl font-bold">{t('coords.score', { c: score.c, t: score.t })}</div>
             </div>
           )}
+          <DrillBar kind={kind} finished={finished} />
           <p className="text-xs text-slate-400">{t('coords.history', { n: best })}</p>
           <Button onClick={start}>{finished ? t('coords.again') : `${t('common.start')} · ${t('coords.round')}`}</Button>
         </Card>
