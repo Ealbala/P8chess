@@ -4,7 +4,7 @@
 // Public tools read Chess.com only. With ?key=<app password> in the URL, Claude can also read
 // the app's own data (Stockfish findings, section ratings) and send messages, assigned
 // training and goals back to the app. No engine here: Claude must not invent evaluations.
-import { contextPath, inboxPath, passwordOk, readJson, storageReady, writeJson, type InboxItem } from './_store'
+import { contextPath, inboxPath, passwordOk, readJson, storageReady, writeJson, type InboxItem } from './_store.js'
 
 const SERVER = { name: 'pocho-chess', version: '1.0.0' }
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']

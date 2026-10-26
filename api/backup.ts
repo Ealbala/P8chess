@@ -2,7 +2,7 @@
 // it is stored privately under a path derived from your app password (COACH_PASSWORD).
 // Needs: a Blob store connected to the Vercel project (adds BLOB_READ_WRITE_TOKEN).
 import { head } from '@vercel/blob'
-import { contextPath, passwordOk, readBlob, userPrefix, writeBlob, writeJson } from './_store'
+import { contextPath, passwordOk, readBlob, userPrefix, writeBlob, writeJson } from './_store.js'
 
 const MAX_BYTES = 4_000_000
 
