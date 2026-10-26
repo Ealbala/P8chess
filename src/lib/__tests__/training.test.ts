@@ -36,6 +36,18 @@ describe('training sections', () => {
     expect(pickForTracks(all, [forks], 1520, new Set(), [])!.id).toBe('a')
     expect(pickForTracks(all, [forks], 1520, new Set(['a']), [])!.id).toBe('b')
   })
+
+  it('never repeats a tried puzzle (failed or solved) while fresh ones remain', async () => {
+    const { pickPuzzle } = await import('../puzzles')
+    const p = (id: string, rating: number): Puzzle => ({ id, fen: '', moves: [], rating, themes: ['fork'], cat: 'tactics' })
+    const all = [p('a', 1500), p('b', 1500), p('c', 2400)]
+    const old = new Date(Date.now() - 5 * 86400000).toISOString()
+    const tried = [att(['fork'], false, 1500, { puzzleId: 'a', date: old }), att(['fork'], true, 1500, { puzzleId: 'b', date: old })]
+    for (let i = 0; i < 20; i++) {
+      expect(pickForTracks(all, [forks], 1500, new Set(), tried)!.id).toBe('c')
+      expect(pickPuzzle(all, 'tactics', 1500, tried, [])!.id).toBe('c')
+    }
+  })
 })
 
 describe('monthly exam', async () => {

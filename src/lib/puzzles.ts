@@ -2,7 +2,6 @@
 // Lichess format: `fen` is the position BEFORE the opponent's move; moves[0] is the
 // opponent's move, then the solver and opponent alternate.
 import type { PuzzleAttempt } from './db'
-import { addDays } from './dates'
 
 export type PuzzleCat = 'tactics' | 'calculation' | 'middlegame' | 'endgame' | 'opening'
 
@@ -43,25 +42,16 @@ export function pickPuzzle(
   openingId?: string,
 ): Puzzle | null {
   const pool = all.filter((p) => p.cat === cat && !exclude.has(p.id) && (!openingId || p.openings?.includes(openingId)))
-  const byId = new Map<string, PuzzleAttempt[]>()
-  attempts.forEach((a) => byId.set(a.puzzleId, [...(byId.get(a.puzzleId) ?? []), a]))
-
-  const yesterday = addDays(new Date(), -1).toISOString()
-  const due = pool.filter((p) => {
-    const list = byId.get(p.id)
-    if (!list) return false
-    const last = list.reduce((x, y) => (x.date > y.date ? x : y))
-    return !last.correct && last.date <= yesterday
-  })
-  if (due.length) return due[Math.floor(Math.random() * due.length)]
-
-  const unseen = pool.filter((p) => !byId.has(p.id))
+  // Never repeat on its own: puzzles already tried (in any mode) only come back when
+  // you redo them from the history, or once the whole category is used up.
+  const tried = new Set(attempts.map((a) => a.puzzleId))
+  const unseen = pool.filter((p) => !tried.has(p.id))
   let candidates: Puzzle[] = []
   for (const w of [100, 200, 350, 600, 2000]) {
     candidates = unseen.filter((p) => Math.abs(p.rating - rating) <= w)
     if (candidates.length >= 5) break
   }
-  if (!candidates.length) candidates = pool // everything seen: allow repeats
+  if (!candidates.length) candidates = unseen.length ? unseen : pool // all tried: allow repeats
   if (!candidates.length) return null
 
   if (cat === 'tactics' && weakThemes.length && Math.random() < 0.4) {

@@ -73,13 +73,16 @@ export function pickForTracks(
   attempts: PuzzleAttempt[],
   window = 150,
 ): Puzzle | null {
-  const done = new Set(attempts.filter((a) => a.correct).map((a) => a.puzzleId))
+  // Any puzzle already tried (right or wrong, rush included) is skipped while fresh ones remain.
+  const done = new Set(attempts.map((a) => a.puzzleId))
   const pool = all.filter((p) => !exclude.has(p.id) && tracks.some((t) => inTrack(t, p)))
-  for (const w of [window, window * 2, 500, 3000]) {
-    const near = pool.filter((p) => Math.abs(p.rating - target) <= w)
-    const fresh = near.filter((p) => !done.has(p.id))
-    const list = fresh.length ? fresh : near
-    if (list.length) return list[Math.floor(Math.random() * list.length)]
+  const fresh = pool.filter((p) => !done.has(p.id))
+  // A fresh puzzle a bit further from the target beats repeating one; repeats only when all are tried.
+  for (const list of [fresh, pool]) {
+    for (const w of [window, window * 2, 500, 3000]) {
+      const near = list.filter((p) => Math.abs(p.rating - target) <= w)
+      if (near.length) return near[Math.floor(Math.random() * near.length)]
+    }
   }
   return null
 }
